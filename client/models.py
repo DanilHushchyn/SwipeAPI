@@ -130,6 +130,7 @@ class Promotion(models.Model):
 
 class Chat(models.Model):
     date_created = models.DateField(auto_now_add=True)
+    users = models.ManyToManyField('users.CustomUser', null=True)
 
     class Meta:
         db_table = "chat"
@@ -138,10 +139,13 @@ class Chat(models.Model):
 class ChatMessage(models.Model):
     content = models.TextField()
     sender = models.ForeignKey(
-        "users.Client", on_delete=models.SET_NULL, null=True
+        "users.CustomUser", on_delete=models.SET_NULL, null=True, related_name="sender",
     )
-    chat = models.ForeignKey("Chat", on_delete=models.CASCADE)
-    file = models.FileField(upload_to=get_timestamp_path)
+    recipient = models.ForeignKey(
+        "users.CustomUser", on_delete=models.SET_NULL, null=True, related_name="recipient",
+    )
+    chat = models.ForeignKey("Chat", on_delete=models.CASCADE, null=True)
+    file = models.FileField(upload_to=get_timestamp_path,null=True)
     date_published = models.DateTimeField(auto_now_add=True)
 
     class Meta:

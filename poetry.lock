@@ -403,6 +403,21 @@ python-jose = ["python-jose (==3.3.0)"]
 test = ["cryptography", "pytest", "pytest-cov", "pytest-django", "pytest-xdist", "tox"]
 
 [[package]]
+name = "drf-psq"
+version = "1.1.0"
+description = "The simplest and most general way to manage action-based permissions, serializers, and querysets dependent on permission-based rules for the Django REST framework!"
+optional = false
+python-versions = "*"
+files = [
+    {file = "drf_psq-1.1.0-py2.py3-none-any.whl", hash = "sha256:d159451e2a486005379e877743352fda3f3ac4c8d1803732e80bf0340b0d5c08"},
+    {file = "drf_psq-1.1.0.tar.gz", hash = "sha256:3848b5985d7dafe40ed09df1073d4e16db38cc21b9b79d29fa76804990aa8a7c"},
+]
+
+[package.dependencies]
+django = "*"
+djangorestframework = "*"
+
+[[package]]
 name = "drf-spectacular"
 version = "0.26.4"
 description = "Sane and flexible OpenAPI 3 schema generation for Django REST framework"
@@ -1133,4 +1148,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "750be2679631568067f70c5950aa052b6f6f5cd1e4d972214a7e9ac9180ea732"
+content-hash = "831dd6ca0d8efc1c02a4425c4387caf766277f4f89e8a901543f9164c1e67bf5"

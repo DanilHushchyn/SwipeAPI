@@ -10,7 +10,6 @@ from dj_rest_auth.views import (
 )
 from django.urls import include, path, re_path
 
-from users.views import VerifyEmailOwn
 
 urlpatterns = [
     # User Auth

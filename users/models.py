@@ -42,17 +42,19 @@ class NotificationsType(models.TextChoices):
     disabled = "Отключить", "Отключить"
 
 
-class Client(models.Model):
-    user = models.OneToOneField(
-        CustomUser, on_delete=models.CASCADE, related_name="client"
-    )
-    agent_first_name = models.CharField(max_length=100)
-    agent_last_name = models.CharField(max_length=100)
-    agent_email = models.EmailField(max_length=255)
-    agent_phone = models.CharField(
+class Contact(models.Model):
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE,
+                                null=True,
+                                blank=True,
+                                related_name='agent_contacts')
+    complex = models.OneToOneField(Complex, on_delete=models.CASCADE,
+                                   null=True, blank=True,
+                                   related_name='complex_contacts')
+    contacts = [('Отдел продаж', 'Отдел продаж'), ('Агент', 'Агент')]
+    contact_type = models.CharField(max_length=20, choices=contacts)
+    phone = models.CharField(
         max_length=19,
         validators=[
-            validators.MaxLengthValidator(19),
             validators.MaxLengthValidator(19),
             validators.MinLengthValidator(19),
             validators.ProhibitNullCharactersValidator(),
@@ -62,6 +64,16 @@ class Client(models.Model):
             ),
         ],
     )
+    first_name = models.CharField(max_length=30, null=True, blank=True)
+    last_name = models.CharField(max_length=30, null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
+
+
+class Client(models.Model):
+    user = models.OneToOneField(
+        CustomUser, on_delete=models.CASCADE, related_name="client"
+    )
+
     favorite_adverts = models.ManyToManyField(
         "client.Advert", related_name="favorite_adverts_set"
     )

@@ -18,36 +18,42 @@ class ComplexViewSet(viewsets.ModelViewSet):
 class GalleryViewSet(viewsets.ModelViewSet):
     serializer_class = GallerySerializer
     queryset = Gallery.objects.all()
+    permission_classes = [IsAuthenticated]
 
 
 @extend_schema(tags=["Photos"])
 class PhotoViewSet(viewsets.ModelViewSet):
     serializer_class = PhotoSerializer
     queryset = Photo.objects.all()
+    permission_classes = [IsAuthenticated]
 
 
 @extend_schema(tags=["Corp"])
 class CorpViewSet(viewsets.ModelViewSet):
     serializer_class = CorpSerializer
     queryset = Corp.objects.all()
+    permission_classes = [IsAuthenticated]
 
 
 @extend_schema(tags=["Floors"])
 class FloorViewSet(viewsets.ModelViewSet):
     serializer_class = FloorSerializer
     queryset = Floor.objects.all()
+    permission_classes = [IsAuthenticated]
 
 
 @extend_schema(tags=["Sections"])
 class SectionViewSet(viewsets.ModelViewSet):
     serializer_class = SectionSerializer
     queryset = Section.objects.all()
+    permission_classes = [IsAuthenticated]
 
 
 @extend_schema(tags=["Sewers"])
 class SewerViewSet(viewsets.ModelViewSet):
     serializer_class = SewerSerializer
     queryset = Sewer.objects.all()
+    permission_classes = [IsAuthenticated]
 
 
 @extend_schema(tags=["Flats"])
@@ -59,6 +65,7 @@ class SewerViewSet(viewsets.ModelViewSet):
 class FlatViewSet(viewsets.ModelViewSet):
     serializer_class = FlatSerializer
     queryset = Flat.objects.all()
+    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         methods=["GET"],
@@ -84,6 +91,7 @@ class FlatViewSet(viewsets.ModelViewSet):
 class NewsViewSet(viewsets.ModelViewSet):
     serializer_class = NewsSerializer
     queryset = News.objects.all()
+    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         methods=["GET"],
