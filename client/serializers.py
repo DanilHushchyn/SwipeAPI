@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from client.models import *
+from users.models import CustomUser
 
 
 class AdvertSerializer(serializers.ModelSerializer):
@@ -33,8 +34,13 @@ class ChatSerializer(serializers.ModelSerializer):
 
     def is_title(self, obj):
         user = self.context['request'].user
-        recipient = Chat.objects.get(pk=obj.id).users.exclude(id=user.id).get()
-        return f"{recipient.last_name} {recipient.first_name}"
+        try:
+            recipient = Chat.objects.get(pk=obj.id).users.exclude(id=user.id).get()
+            result = f"{recipient.last_name} {recipient.first_name}"
+
+        except CustomUser.DoesNotExist:
+            result = "Deleted Account"
+        return result
 
     class Meta:
         model = Chat

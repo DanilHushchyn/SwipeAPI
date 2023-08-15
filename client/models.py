@@ -61,7 +61,7 @@ class Advert(models.Model):
     address = models.TextField()
     description = models.TextField()
     main_photo = models.ImageField(upload_to=get_timestamp_path)
-    client = models.ForeignKey("users.Client", on_delete=models.CASCADE)
+    client = models.ForeignKey("users.CustomUser", on_delete=models.CASCADE)
     grounds_doc = models.CharField(
         max_length=100, choices=AdvertDocument.choices
     )
@@ -130,7 +130,7 @@ class Promotion(models.Model):
 
 class Chat(models.Model):
     date_created = models.DateField(auto_now_add=True)
-    users = models.ManyToManyField('users.CustomUser', null=True)
+    users = models.ManyToManyField('users.CustomUser')
 
     class Meta:
         db_table = "chat"
@@ -155,7 +155,7 @@ class ChatMessage(models.Model):
 class Subscription(models.Model):
     expiration_date = models.DateTimeField()
     auto_renewal = models.BooleanField()
-    client = models.OneToOneField("users.Client", on_delete=models.CASCADE)
+    client = models.OneToOneField("users.CustomUser", on_delete=models.CASCADE)
 
     class Meta:
         db_table = "subscription"
@@ -181,7 +181,7 @@ class Filter(models.Model):
     condition = models.CharField(
         max_length=100, choices=AdvertCondition.choices
     )
-    client = models.OneToOneField("users.Client", on_delete=models.CASCADE)
+    client = models.OneToOneField("users.CustomUser", on_delete=models.CASCADE)
 
     class Meta:
         db_table = "filter"

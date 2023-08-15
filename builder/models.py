@@ -62,53 +62,53 @@ class PaymentTypes(models.TextChoices):
 
 class Complex(models.Model):
     title = models.CharField(
-        max_length=150,
+        max_length=150, default='не указано'
     )
-    description = models.TextField()
-    address = models.TextField()
+    description = models.TextField(default='не указано')
+    address = models.TextField(default='не указано')
     builder = models.OneToOneField(
-        "users.CustomUser", on_delete=models.CASCADE
+        "users.CustomUser", on_delete=models.CASCADE, related_name="complex"
     )
-    coordinate = models.TextField()
+    coordinate = models.TextField(default='не указано')
     main_photo = models.ImageField(
-        upload_to=get_timestamp_path,
+        upload_to=get_timestamp_path, null=True
     )
-    benefit = models.ManyToManyField("Benefit")
-    gallery = models.ForeignKey("Gallery", on_delete=models.CASCADE)
-    doc_kit = models.ForeignKey("DocKit", on_delete=models.CASCADE)
-    min_price = models.PositiveIntegerField()
-    price_per_square = models.PositiveIntegerField()
-    min_squares = models.PositiveIntegerField()
-    max_squares = models.PositiveIntegerField()
-    square_price = models.PositiveIntegerField()
-    status = models.CharField(max_length=100, choices=ComplexStatus.choices)
-    level = models.CharField(max_length=100, choices=ComplexLevel.choices)
-    type = models.CharField(max_length=100, choices=ComplexTypeHouse.choices)
+    benefits = models.ManyToManyField("Benefit")
+    gallery = models.ForeignKey("Gallery", on_delete=models.CASCADE, null=True)
+    doc_kit = models.ForeignKey("DocKit", on_delete=models.CASCADE, null=True)
+    min_price = models.PositiveIntegerField(default=0)
+    price_per_square = models.PositiveIntegerField(default=0)
+    min_squares = models.PositiveIntegerField(default=0)
+    max_squares = models.PositiveIntegerField(default=0)
+    square_price = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=100, choices=ComplexStatus.choices, default=ComplexStatus.FLATS)
+    level = models.CharField(max_length=100, choices=ComplexLevel.choices, default=ComplexLevel.STANDART)
+    type = models.CharField(max_length=100, choices=ComplexTypeHouse.choices, default=ComplexTypeHouse.MULTI_FAMILY)
     material_type = models.CharField(
-        max_length=100, choices=ComplexTypeMaterial.choices
+        max_length=100, choices=ComplexTypeMaterial.choices, default=ComplexTypeMaterial.MONOLITH_PANEL
     )
     perimeter_status = models.CharField(
-        max_length=100, choices=ComplexPerimeter.choices
+        max_length=100, choices=ComplexPerimeter.choices, default=ComplexPerimeter.CLOSED
     )
-    sea_destination_m = models.PositiveIntegerField()
-    ceiling_height_m = models.PositiveIntegerField()
+    sea_destination_m = models.PositiveIntegerField(default=0)
+    ceiling_height_m = models.PositiveIntegerField(default=0)
     gas = models.BooleanField(default=False)
-    heating = models.CharField(max_length=100, choices=HeatingTypes.choices)
+    heating = models.CharField(max_length=100, choices=HeatingTypes.choices, default=HeatingTypes.CENTRAL)
     electricity = models.BooleanField(default=False)
     water_supply = models.CharField(
-        max_length=100, choices=ComplexWaterSupply.choices
+        max_length=100, choices=ComplexWaterSupply.choices, default=ComplexWaterSupply.CENTRAL
     )
     sewerage = models.CharField(
-        max_length=100, choices=ComplexSewerage.choices
+        max_length=100, choices=ComplexSewerage.choices, default=ComplexSewerage.CENTRAL
     )
     registration_type = models.CharField(
-        max_length=100,
+        max_length=100, default='не указано'
     )
     payment_type = models.CharField(
-        max_length=200, choices=PaymentTypes.choices
+        max_length=200, choices=PaymentTypes.choices, default=PaymentTypes.MATHEMATICAL_CAPITAL
     )
-    payment_target = models.CharField(max_length=100)
-    price_in_contract = models.CharField(max_length=100)
+    payment_target = models.CharField(max_length=100, default='не указано')
+    price_in_contract = models.CharField(max_length=100, default='не указано')
     date_added = models.DateField(auto_now_add=True)
 
     def __str__(self):
@@ -170,7 +170,7 @@ class Benefit(models.Model):
 
 class Corp(models.Model):
     title = models.CharField(max_length=50)
-    complex = models.ForeignKey("Complex", on_delete=models.CASCADE)
+    complex = models.ForeignKey("Complex", on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         return f"{self.title}"
@@ -204,7 +204,7 @@ class Floor(models.Model):
 
 class Sewer(models.Model):
     number = models.CharField(max_length=10)
-    complex = models.ForeignKey("Complex", on_delete=models.CASCADE)
+    corp = models.ForeignKey("Corp", on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         return f"{self.number}"
@@ -234,7 +234,7 @@ class News(models.Model):
     title = models.CharField()
     description = models.TextField()
     date_published = models.DateField(auto_now_add=True)
-    complex = models.ForeignKey("Complex", on_delete=models.CASCADE)
+    complex = models.ForeignKey("Complex", on_delete=models.CASCADE, related_name='news', null=True)
 
     class Meta:
         db_table = "news"

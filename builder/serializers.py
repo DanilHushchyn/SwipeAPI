@@ -3,12 +3,6 @@ from rest_framework import serializers
 from builder.models import *
 
 
-class ComplexSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Complex
-        fields = "__all__"
-
-
 class CorpSerializer(serializers.ModelSerializer):
     class Meta:
         model = Corp
@@ -54,4 +48,14 @@ class PhotoSerializer(serializers.ModelSerializer):
 class NewsSerializer(serializers.ModelSerializer):
     class Meta:
         model = News
-        fields = "__all__"
+        exclude = ('date_published','complex')
+        read_only_fields = ['id']
+
+
+class ComplexSerializer(serializers.ModelSerializer):
+    news = NewsSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Complex
+        exclude = ('benefits', 'builder')
+        read_only_fields = ['id', 'created']
