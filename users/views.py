@@ -7,7 +7,7 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from builder.models import Complex
+from builder.models import *
 from client.models import Chat
 from users.models import CustomUser, Contact
 from users.serializers import ProfileSerializer, ContactSerializer
@@ -115,7 +115,10 @@ class CustomRegisterView(RegisterView):
         # For example, you can create an additional profile for the user
         Contact.objects.create(user=user).save()
         if user.is_builder:
-            Complex.objects.create(builder=user).save()
+            gallery = Gallery.objects.create()
+            doc_kit = DocKit.objects.create()
+            obj = Complex.objects.create(builder=user, gallery=gallery, doc_kit=doc_kit)
+            Benefit.objects.create(complex_id=obj.id).save()
 
         # You can also perform other operations like sending an email, creating related objects, etc.
 

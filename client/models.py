@@ -3,7 +3,7 @@ from django.db import models
 from builder.models import *
 
 
-class AdvertDocument(models.TextChoices):
+class ApartmentDocument(models.TextChoices):
     OWN = "Собственность", "Собственность"
     INHERITANCE = (
         "Свидетельство о праве на наследство",
@@ -11,14 +11,14 @@ class AdvertDocument(models.TextChoices):
     )
 
 
-class AdvertAppointment(models.TextChoices):
+class ApartmentAppointment(models.TextChoices):
     APARTMENTS = "Дом", "Дом"
     FLAT = "Квартира", "Квартира"
     COMMERCIAL = "Коммерческие помещения", "Коммерческие помещения"
     OFFICE = "Офисное помещение", "Офисное помещение"
 
 
-class AdvertRooms(models.IntegerChoices):
+class ApartmentRooms(models.IntegerChoices):
     ONE = 1, "1 комнатная"
     TWO = 2, "2 комнатная"
     THREE = 3, "3 комнатная"
@@ -28,26 +28,26 @@ class AdvertRooms(models.IntegerChoices):
     SEVEN = 7, "7 комнатная"
 
 
-class AdvertLayout(models.TextChoices):
+class ApartmentLayout(models.TextChoices):
     STUDIO = "Студия, санузел", "Студия, санузел"
     CLASSIC = "Классическая", "Классическая"
     EURO = "Европланировка", "Европланировка"
     FREE = "Свободная", "Свободная"
 
 
-class AdvertAgentCommission(models.IntegerChoices):
+class ApartmentAgentCommission(models.IntegerChoices):
     SMALL = 5000, "5 000 ₴"
     MEDIUM = 15000, "15 000 ₴"
     BIG = 30000, "30 000 ₴"
 
 
-class AdvertCommunication(models.TextChoices):
+class ApartmentCommunication(models.TextChoices):
     CALL_MESSAGE = "Звонок + сообщение", "Звонок + сообщение"
     CALL = "Звонок", "Звонок"
     MESSAGE = "Сообщение", "Сообщение"
 
 
-class AdvertCondition(models.TextChoices):
+class ApartmentCondition(models.TextChoices):
     ROUGH_FINISH = "Черновая", "Черновая"
     REPAIR_FROM_THE_DEVELOPER = (
         "Ремонт от застройщика",
@@ -56,24 +56,26 @@ class AdvertCondition(models.TextChoices):
     RESIDENTIAL_CONDITION = "В жилом состоянии", "В жилом состоянии"
 
 
-class Advert(models.Model):
+class Announcement(models.Model):
     complex = models.ForeignKey("builder.Complex", on_delete=models.CASCADE)
+    apartment = models.OneToOneField('builder.Apartment', models.CASCADE, null=True, related_name='announcement')
     address = models.TextField()
     description = models.TextField()
     main_photo = models.ImageField(upload_to=get_timestamp_path)
-    client = models.ForeignKey("users.CustomUser", on_delete=models.CASCADE)
+    is_actual = models.BooleanField(default=True)
+    is_moderated = models.BooleanField(default=False)
+    client = models.ForeignKey("users.CustomUser", on_delete=models.CASCADE, related_name='announcements')
     grounds_doc = models.CharField(
-        max_length=100, choices=AdvertDocument.choices
+        max_length=100, choices=ApartmentDocument.choices
     )
     appointment = models.CharField(
-        max_length=100, choices=AdvertAppointment.choices
+        max_length=100, choices=ApartmentAppointment.choices
     )
-    room_count = models.CharField(max_length=100, choices=AdvertRooms.choices)
-    layout = models.CharField(max_length=100, choices=AdvertLayout.choices)
+    room_count = models.CharField(max_length=100, choices=ApartmentRooms.choices)
+    layout = models.CharField(max_length=100, choices=ApartmentLayout.choices)
     living_condition = models.CharField(
-        max_length=100, choices=AdvertCondition.choices
+        max_length=100, choices=ApartmentCondition.choices
     )
-    square = models.PositiveIntegerField()
     kitchen_square = models.PositiveIntegerField()
     balcony_or_loggia = models.BooleanField()
     heating_type = models.CharField(
@@ -83,16 +85,15 @@ class Advert(models.Model):
         max_length=100, choices=PaymentTypes.choices
     )
     agent_commission = models.PositiveIntegerField(
-        choices=AdvertAgentCommission.choices
+        choices=ApartmentAgentCommission.choices
     )
-    communication_type = models.CharField(choices=AdvertCommunication.choices)
-    price = models.PositiveIntegerField()
+    communication_type = models.CharField(choices=ApartmentCommunication.choices)
     date_published = models.DateTimeField(auto_now_add=True)
-    watched_count = models.PositiveIntegerField()
+    watched_count = models.PositiveIntegerField(default=0)
     gallery = models.ForeignKey("builder.Gallery", on_delete=models.CASCADE)
 
     class Meta:
-        db_table = "advert"
+        db_table = "announcement"
 
 
 class Color(models.Model):
@@ -122,7 +123,7 @@ class Promotion(models.Model):
     turbo = models.BooleanField()
     raise_advert = models.BooleanField()
     price = models.PositiveIntegerField()
-    advert = models.OneToOneField("Advert", on_delete=models.CASCADE)
+    apartment = models.OneToOneField("Announcement", on_delete=models.CASCADE, null=True)
 
     class Meta:
         db_table = "promotion"
@@ -145,7 +146,7 @@ class ChatMessage(models.Model):
         "users.CustomUser", on_delete=models.SET_NULL, null=True, related_name="recipient",
     )
     chat = models.ForeignKey("Chat", on_delete=models.CASCADE, null=True)
-    file = models.FileField(upload_to=get_timestamp_path,null=True)
+    file = models.FileField(upload_to=get_timestamp_path, null=True)
     date_published = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -163,23 +164,23 @@ class Subscription(models.Model):
 
 class Filter(models.Model):
     address = models.TextField()
-    layout = models.CharField(max_length=100, choices=AdvertLayout.choices)
+    layout = models.CharField(max_length=100, choices=ApartmentLayout.choices)
     grounds_doc = models.CharField(
-        max_length=100, choices=AdvertDocument.choices
+        max_length=100, choices=ApartmentDocument.choices
     )
-    room_count = models.CharField(max_length=100, choices=AdvertRooms.choices)
+    room_count = models.CharField(max_length=100, choices=ApartmentRooms.choices)
     min_price = models.PositiveIntegerField()
     max_price = models.PositiveIntegerField()
     min_square = models.PositiveIntegerField()
     max_square = models.PositiveIntegerField()
     appointment = models.CharField(
-        max_length=100, choices=AdvertAppointment.choices
+        max_length=100, choices=ApartmentAppointment.choices
     )
     payment_type = models.CharField(
         max_length=100, choices=PaymentTypes.choices
     )
     condition = models.CharField(
-        max_length=100, choices=AdvertCondition.choices
+        max_length=100, choices=ApartmentCondition.choices
     )
     client = models.OneToOneField("users.CustomUser", on_delete=models.CASCADE)
 

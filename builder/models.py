@@ -73,8 +73,7 @@ class Complex(models.Model):
     main_photo = models.ImageField(
         upload_to=get_timestamp_path, null=True
     )
-    benefits = models.ManyToManyField("Benefit")
-    gallery = models.ForeignKey("Gallery", on_delete=models.CASCADE, null=True)
+    gallery = models.OneToOneField("Gallery", on_delete=models.CASCADE, null=True, related_name='complex')
     doc_kit = models.ForeignKey("DocKit", on_delete=models.CASCADE, null=True)
     min_price = models.PositiveIntegerField(default=0)
     price_per_square = models.PositiveIntegerField(default=0)
@@ -133,7 +132,7 @@ class Photo(models.Model):
         "Gallery",
         on_delete=models.CASCADE,
         null=True,
-        related_name="photo_set",
+        related_name="photos",
     )
 
     class Meta:
@@ -149,9 +148,12 @@ class DocKit(models.Model):
 
 
 class File(models.Model):
-    file = models.FileField(upload_to=get_timestamp_path)
+    file = models.FileField(upload_to=f'complexes/doc-kit/')
+    title = models.CharField(max_length=50, default='document')
+    file_format = models.CharField(max_length=5, null=True, blank=True)
+
     dock_kit = models.ForeignKey(
-        "DocKit", on_delete=models.CASCADE, related_name="file_set"
+        "DocKit", on_delete=models.CASCADE, related_name="files", null=True
     )
 
     class Meta:
@@ -159,10 +161,13 @@ class File(models.Model):
 
 
 class Benefit(models.Model):
-    title = models.CharField(max_length=100)
-
-    def __str__(self):
-        return self.title
+    playground = models.BooleanField(default=False)
+    school = models.BooleanField(default=False)
+    tennis_court = models.BooleanField(default=False)
+    shopping_mall = models.BooleanField(default=False)
+    subway = models.BooleanField(default=False)
+    park = models.BooleanField(default=False)
+    complex = models.OneToOneField("Complex", on_delete=models.CASCADE, null=True, related_name="benefit")
 
     class Meta:
         db_table = "benefit"
@@ -170,7 +175,7 @@ class Benefit(models.Model):
 
 class Corp(models.Model):
     title = models.CharField(max_length=50)
-    complex = models.ForeignKey("Complex", on_delete=models.CASCADE, null=True)
+    complex = models.ForeignKey("Complex", on_delete=models.CASCADE, null=True, related_name='corps')
 
     def __str__(self):
         return f"{self.title}"
@@ -181,7 +186,7 @@ class Corp(models.Model):
 
 class Section(models.Model):
     title = models.CharField(max_length=50)
-    corp = models.ForeignKey("Corp", on_delete=models.CASCADE)
+    corp = models.ForeignKey("Corp", on_delete=models.CASCADE, related_name="sections", null=True)
 
     def __str__(self):
         return f"{self.title}"
@@ -192,8 +197,8 @@ class Section(models.Model):
 
 class Floor(models.Model):
     title = models.CharField(max_length=50)
-    scheme = models.ImageField(upload_to=get_timestamp_path)
-    corp = models.ForeignKey("Corp", on_delete=models.CASCADE)
+    scheme = models.ImageField(upload_to=get_timestamp_path, null=True)
+    section = models.ForeignKey("Section", on_delete=models.CASCADE, related_name="floors", null=True)
 
     def __str__(self):
         return f"{self.title}"
@@ -204,30 +209,13 @@ class Floor(models.Model):
 
 class Sewer(models.Model):
     number = models.CharField(max_length=10)
-    corp = models.ForeignKey("Corp", on_delete=models.CASCADE, null=True)
+    section = models.ForeignKey("Section", on_delete=models.CASCADE, null=True, related_name="sewers")
 
     def __str__(self):
         return f"{self.number}"
 
     class Meta:
         db_table = "sewer"
-
-
-class Flat(models.Model):
-    number = models.CharField(max_length=50)
-    scheme = models.ImageField(upload_to=get_timestamp_path)
-    section = models.ForeignKey("Section", on_delete=models.CASCADE)
-    floor = models.ForeignKey("Floor", on_delete=models.CASCADE)
-    sewer = models.ForeignKey("Sewer", on_delete=models.CASCADE)
-    square = models.PositiveSmallIntegerField()
-    price = models.PositiveIntegerField()
-    price_per_m2 = models.PositiveIntegerField()
-
-    def __str__(self):
-        return f"{self.number}"
-
-    class Meta:
-        db_table = "flat"
 
 
 class News(models.Model):
@@ -238,3 +226,21 @@ class News(models.Model):
 
     class Meta:
         db_table = "news"
+
+
+class Apartment(models.Model):
+    number = models.CharField(max_length=50)
+    scheme = models.ImageField(upload_to=get_timestamp_path)
+    section = models.ForeignKey("Section", on_delete=models.CASCADE, related_name='apartments')
+    floor = models.ForeignKey("Floor", on_delete=models.CASCADE, related_name='apartments')
+    sewer = models.ForeignKey("Sewer", on_delete=models.CASCADE, related_name='apartments')
+    complex = models.ForeignKey("Complex", on_delete=models.CASCADE, related_name='apartments')
+    owner = models.ForeignKey("users.CustomUser", on_delete=models.CASCADE, related_name='apartments')
+    square = models.PositiveSmallIntegerField(default=0)
+    price = models.PositiveIntegerField(default=0)
+
+    def price_per_m2(self):
+        return self.square / self.price
+
+    class Meta:
+        db_table = "apartment"

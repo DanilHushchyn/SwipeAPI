@@ -1,13 +1,21 @@
 from rest_framework import serializers
 
+from builder.serializers import GallerySerializer, ComplexSerializer
 from client.models import *
 from users.models import CustomUser
 
 
-class AdvertSerializer(serializers.ModelSerializer):
+class AnnouncementSerializer(serializers.ModelSerializer):
+    gallery = GallerySerializer(read_only=True)
+
     class Meta:
-        model = Advert
-        fields = "__all__"
+        model = Announcement
+        exclude = ('client', 'apartment', 'is_moderated')
+
+    def create(self, validated_data):
+        gallery = Gallery.objects.create()
+        instance = Announcement.objects.create(**validated_data, gallery=gallery, client=self.context['user'], )
+        return instance
 
 
 class PromotionSerializer(serializers.ModelSerializer):

@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from client.views import *
 
 router = DefaultRouter()
-router.register(prefix=r"adverts", viewset=AdvertViewSet, basename="adverts")
+router.register(prefix=r"announcements", viewset=AnnouncementViewSet, basename="announcements")
 router.register(
     prefix=r"subscriptions",
     viewset=SubscriptionViewSet,

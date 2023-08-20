@@ -31,13 +31,13 @@ class CustomUser(AbstractUser):
             validators.ProhibitNullCharactersValidator(),
             validators.RegexValidator(
                 "^\+38 \(\d{3}\) \d{3}-?\d{2}-?\d{2}$",
-                message="Неверно введён номер телефона.Пример ввода: +38 (098) 567-81-23",
+                message="Неверно вApartmentведён номер телефона.Пример ввода: +38 (098) 567-81-23",
             ),
         ],
     )
 
-    favorite_adverts = models.ManyToManyField(
-        "client.Advert", related_name="favorite_adverts_set"
+    favorite_apartments = models.ManyToManyField(
+        "client.Announcement", related_name="favorite_apartments_set"
     )
     favorite_complexes = models.ManyToManyField(
         "builder.Complex", related_name="favorite_comlexes_set"

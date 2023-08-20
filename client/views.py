@@ -11,11 +11,36 @@ from client.serializers import *
 from users.models import *
 
 
-@extend_schema(tags=["Adverts"])
-class AdvertViewSet(viewsets.ModelViewSet):
-    serializer_class = AdvertSerializer
-    queryset = Advert.objects.all()
+@extend_schema(tags=["Announcements"])
+@extend_schema(
+    methods=["GET"], description="Get all announcements. Permissions: IsAuthenticated"
+)
+@extend_schema(methods=["PUT", "PATCH"], description="Update specific announcement.")
+@extend_schema(methods=["POST"], description="Create new announcement.")
+class AnnouncementViewSet(viewsets.ModelViewSet):
+    serializer_class = AnnouncementSerializer
+    queryset = Announcement.objects.all()
     permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={'user': request.user})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(data=serializer.data)
+
+    # @extend_schema(
+    #     methods=["GET"],
+    #     description="Get apartments for a specific section in specific complex.",
+    # )
+    # @action(
+    #     detail=False,
+    #     methods=["get"],
+    #     url_path="sort_by_complex/(?P<complex_id>[^/.]+)",
+    # )
+    # def sort_by_complex(self, request, complex_id=None):
+    #     news = self.queryset.filter(complex_id=complex_id)
+    #     serializer = self.serializer_class(news, many=True)
+    #     return Response(serializer.data)
 
 
 @extend_schema(tags=["Subscriptions"])
@@ -82,7 +107,6 @@ class MessageViewSet(
     mixins.DestroyModelMixin,
     GenericViewSet
 ):
-
     serializer_class = ChatMessageSerializer
     queryset = ChatMessage.objects.all()
     permission_classes = [IsAuthenticated]

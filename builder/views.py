@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework import viewsets, mixins, status
 
 from builder.serializers import *
+from client.models import *
 
 
 @extend_schema(tags=["Complexes"])
@@ -53,8 +54,6 @@ class ComplexViewSet(
     )
     @action(methods=["post"], detail=True, url_path="switch_complex_favorite")
     def switch_complex_favorite(self, request, *args, **kwargs):
-        print(self.get_object().id)
-        print(request.user.favorite_complexes.all())
         if self.get_object() in request.user.favorite_complexes.all():
             request.user.favorite_complexes.remove(self.get_object())
             return Response("Успешно удалён")
@@ -62,18 +61,32 @@ class ComplexViewSet(
         return Response("Успешно добавлен")
 
 
-@extend_schema(tags=["Galleries"])
-class GalleryViewSet(viewsets.ModelViewSet):
-    serializer_class = GallerySerializer
-    queryset = Gallery.objects.all()
-    permission_classes = [IsAuthenticated]
-
-
 @extend_schema(tags=["Photos"])
-class PhotoViewSet(viewsets.ModelViewSet):
+class PhotoViewSet(
+    mixins.UpdateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet
+):
     serializer_class = PhotoSerializer
     queryset = Photo.objects.all()
     permission_classes = [IsAuthenticated]
+    http_method_names = ['post', 'get', 'patch', 'delete']
+
+
+@extend_schema(tags=["Files"])
+class FileViewSet(
+    mixins.UpdateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet
+):
+    serializer_class = FileSerializer
+    queryset = File.objects.all()
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['post', 'get', 'patch', 'delete']
 
 
 @extend_schema(tags=["Corp"])
@@ -81,53 +94,13 @@ class CorpViewSet(viewsets.ModelViewSet):
     serializer_class = CorpSerializer
     queryset = Corp.objects.all()
     permission_classes = [IsAuthenticated]
+    http_method_names = ['post', 'patch', 'delete']
 
-
-@extend_schema(tags=["Floors"])
-class FloorViewSet(viewsets.ModelViewSet):
-    serializer_class = FloorSerializer
-    queryset = Floor.objects.all()
-    permission_classes = [IsAuthenticated]
-
-
-@extend_schema(tags=["Sections"])
-class SectionViewSet(viewsets.ModelViewSet):
-    serializer_class = SectionSerializer
-    queryset = Section.objects.all()
-    permission_classes = [IsAuthenticated]
-
-
-@extend_schema(tags=["Sewers"])
-class SewerViewSet(viewsets.ModelViewSet):
-    serializer_class = SewerSerializer
-    queryset = Sewer.objects.all()
-    permission_classes = [IsAuthenticated]
-
-
-@extend_schema(tags=["Flats"])
-@extend_schema(
-    methods=["GET"], description="Get all flats. Permissions: IsAuthenticated"
-)
-@extend_schema(methods=["PUT", "PATCH"], description="Update specific flat.")
-@extend_schema(methods=["POST"], description="Create new flat.")
-class FlatViewSet(viewsets.ModelViewSet):
-    serializer_class = FlatSerializer
-    queryset = Flat.objects.all()
-    permission_classes = [IsAuthenticated]
-
-    @extend_schema(
-        methods=["GET"],
-        description="Get flats for a specific section in specific complex.",
-    )
-    @action(
-        detail=False,
-        methods=["get"],
-        url_path="sort_by_complex/(?P<complex_id>[^/.]+)",
-    )
-    def sort_by_complex(self, request, complex_id=None):
-        news = self.queryset.filter(complex_id=complex_id)
-        serializer = self.serializer_class(news, many=True)
-        return Response(serializer.data)
+    def create(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status.HTTP_201_CREATED)
 
 
 @extend_schema(tags=["News for Complex"])
@@ -147,3 +120,58 @@ class NewsViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save(complex=request.user.complex)
         return Response(serializer.data, status.HTTP_201_CREATED)
+
+
+@extend_schema(tags=["Apartments"])
+@extend_schema(
+    methods=["GET"], description="Get all apartment. Permissions: IsAuthenticated"
+)
+@extend_schema(methods=["PUT", "PATCH"], description="Update specific apartment.")
+@extend_schema(methods=["POST"], description="Create new apartment.")
+class ApartmentViewSet(viewsets.ModelViewSet):
+    serializer_class = ApartmentSerializer
+    queryset = Apartment.objects.all()
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={'user': request.user})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(data=serializer.data)
+
+    @action(methods=['get'], detail=False, url_path="in_chessboard/(?P<floor_id>[^/.]+)/(?P<sewer_id>[^/.]+)",
+            url_name="chessboard")
+    def in_chessboard(self, request, floor_id, sewer_id, *args, **kwargs):
+        try:
+            apartment = Apartment.objects.get(floor_id=self.kwargs['floor_id'], sewer_id=self.kwargs['sewer_id'])
+        except Apartment.DoesNotExist:
+            return Response('Апартаменты отсутствуют в системе')
+        serializer = self.serializer_class(apartment)
+        return Response(data=serializer.data)
+
+
+@extend_schema(tags=["Chessboards"])
+@extend_schema(
+    methods=["GET"], description="Get all apartment. Permissions: IsAuthenticated"
+)
+@extend_schema(methods=["PUT", "PATCH"], description="Update specific apartment.")
+@extend_schema(methods=["POST"], description="Create new apartment.")
+class ChessboardViewSet(viewsets.ModelViewSet):
+    serializer_class = ChessBoardSerializer
+    queryset = Complex.objects.all()
+
+    permission_classes = [IsAuthenticated]
+
+    @action(methods=['get'], detail=False, url_path="chessboards_for_my_complex", url_name="chessboards_for_my_complex")
+    def chessboards_for_my_complex(self, request, *args, **kwargs):
+        complex = Complex.objects.prefetch_related('corps').get(builder=request.user)
+        result = {}
+        for i, corp in enumerate(complex.corps.prefetch_related('sections').all()):
+            # print(list(corp.sections.values().all()))
+            if i == 0:
+                result = corp.sections.all()
+            result = result.union(corp.sections.all())
+        print(result)
+        serializer = self.serializer_class(result, many=True)
+
+        return Response(data=serializer.data)
