@@ -8,9 +8,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from builder.models import *
-from client.models import Chat
+from client.models import Chat, Subscription
 from users.models import CustomUser, Contact
 from users.serializers import ProfileSerializer, ContactSerializer
+from django.utils import timezone
+from dateutil.relativedelta import relativedelta
 
 
 @extend_schema(tags=["Profile"])
@@ -113,7 +115,9 @@ class CustomRegisterView(RegisterView):
         # You can access the newly registered user using the 'user' argument
 
         # For example, you can create an additional profile for the user
-        Contact.objects.create(user=user).save()
+        Contact.objects.create(user=user)
+        Subscription.objects.create(client=user, expiration_date=timezone.now(), auto_renewal=True)
+
         if user.is_builder:
             gallery = Gallery.objects.create()
             doc_kit = DocKit.objects.create()

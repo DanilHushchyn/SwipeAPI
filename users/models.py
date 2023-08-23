@@ -36,11 +36,11 @@ class CustomUser(AbstractUser):
         ],
     )
 
-    favorite_apartments = models.ManyToManyField(
-        "client.Announcement", related_name="favorite_apartments_set"
+    favorite_announcements = models.ManyToManyField(
+        "client.Announcement"
     )
     favorite_complexes = models.ManyToManyField(
-        "builder.Complex", related_name="favorite_comlexes_set"
+        "builder.Complex"
     )
     redirect_notifications_to_agent = models.BooleanField(default=False)
     notification_type = models.CharField(

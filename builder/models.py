@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import ExpressionWrapper, F
 
 from admin.utils import get_timestamp_path
 
@@ -55,6 +56,7 @@ class ComplexSewerage(models.TextChoices):
 
 
 class PaymentTypes(models.TextChoices):
+    DEFAULT = "", ""
     MORTGAGE = "Ипотека", "Ипотека"
     MATHEMATICAL_CAPITAL = "Мат.капитал", "Мат.капитал"
     OTHER = "Другое", "Другое"
@@ -197,7 +199,6 @@ class Section(models.Model):
 
 class Floor(models.Model):
     title = models.CharField(max_length=50)
-    scheme = models.ImageField(upload_to=get_timestamp_path, null=True)
     section = models.ForeignKey("Section", on_delete=models.CASCADE, related_name="floors", null=True)
 
     def __str__(self):
@@ -229,8 +230,8 @@ class News(models.Model):
 
 
 class Apartment(models.Model):
-    number = models.CharField(max_length=50)
-    scheme = models.ImageField(upload_to=get_timestamp_path)
+    number = models.CharField(max_length=50, unique=True)
+    scheme = models.ImageField(upload_to=get_timestamp_path, null=True)
     section = models.ForeignKey("Section", on_delete=models.CASCADE, related_name='apartments')
     floor = models.ForeignKey("Floor", on_delete=models.CASCADE, related_name='apartments')
     sewer = models.ForeignKey("Sewer", on_delete=models.CASCADE, related_name='apartments')
@@ -238,9 +239,19 @@ class Apartment(models.Model):
     owner = models.ForeignKey("users.CustomUser", on_delete=models.CASCADE, related_name='apartments')
     square = models.PositiveSmallIntegerField(default=0)
     price = models.PositiveIntegerField(default=0)
+    is_booked = models.BooleanField(default=False)
+    is_moderated = models.BooleanField(null=True)
+    moderation_status = models.CharField(max_length=30,
+                                         choices=[
+                                             ('bad_price', 'Некорректная цена'),
+                                             ('bad_photo', 'Некорректное фото'),
+                                             ('bad_description', 'Некорректное описание')
+                                         ], null=True)
+    price_per_m2 = models.PositiveIntegerField(default=0)
 
-    def price_per_m2(self):
-        return self.square / self.price
+    def save(self, *args, **kwargs):
+        self.price_per_m2 = self.price / self.square
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = "apartment"

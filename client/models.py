@@ -4,56 +4,56 @@ from builder.models import *
 
 
 class ApartmentDocument(models.TextChoices):
-    OWN = "Собственность", "Собственность"
-    INHERITANCE = (
+    own = "Собственность", "Собственность"
+    inheritance = (
         "Свидетельство о праве на наследство",
         "Свидетельство о праве на наследство",
     )
 
 
 class ApartmentAppointment(models.TextChoices):
-    APARTMENTS = "Дом", "Дом"
-    FLAT = "Квартира", "Квартира"
-    COMMERCIAL = "Коммерческие помещения", "Коммерческие помещения"
-    OFFICE = "Офисное помещение", "Офисное помещение"
+    aparments = "Дом", "Дом"
+    flat = "Квартира", "Квартира"
+    commercial = "Коммерческие помещения", "Коммерческие помещения"
+    office = "Офисное помещение", "Офисное помещение"
 
 
-class ApartmentRooms(models.IntegerChoices):
-    ONE = 1, "1 комнатная"
-    TWO = 2, "2 комнатная"
-    THREE = 3, "3 комнатная"
-    FOUR = 4, "4 комнатная"
-    FIVE = 5, "5 комнатная"
-    SIX = 6, "6 комнатная"
-    SEVEN = 7, "7 комнатная"
+class ApartmentRooms(models.TextChoices):
+    one = 1, "1 комнатная"
+    two = 2, "2 комнатная"
+    three = 3, "3 комнатная"
+    four = 4, "4 комнатная"
+    five = 5, "5 комнатная"
+    six = 6, "6 комнатная"
+    seven = 7, "7 комнатная"
 
 
 class ApartmentLayout(models.TextChoices):
-    STUDIO = "Студия, санузел", "Студия, санузел"
-    CLASSIC = "Классическая", "Классическая"
-    EURO = "Европланировка", "Европланировка"
-    FREE = "Свободная", "Свободная"
+    studio = "Студия, санузел", "Студия, санузел"
+    classic = "Классическая", "Классическая"
+    euro = "Европланировка", "Европланировка"
+    free = "Свободная", "Свободная"
 
 
 class ApartmentAgentCommission(models.IntegerChoices):
-    SMALL = 5000, "5 000 ₴"
-    MEDIUM = 15000, "15 000 ₴"
-    BIG = 30000, "30 000 ₴"
+    small = 5000, "5 000 ₴"
+    medium = 15000, "15 000 ₴"
+    big = 30000, "30 000 ₴"
 
 
 class ApartmentCommunication(models.TextChoices):
-    CALL_MESSAGE = "Звонок + сообщение", "Звонок + сообщение"
-    CALL = "Звонок", "Звонок"
-    MESSAGE = "Сообщение", "Сообщение"
+    call_message = "Звонок + сообщение", "Звонок + сообщение"
+    call = "Звонок", "Звонок"
+    message = "Сообщение", "Сообщение"
 
 
 class ApartmentCondition(models.TextChoices):
-    ROUGH_FINISH = "Черновая", "Черновая"
-    REPAIR_FROM_THE_DEVELOPER = (
+    rough_finish = "Черновая", "Черновая"
+    repair_from_the_developer = (
         "Ремонт от застройщика",
         "Ремонт от застройщика",
     )
-    RESIDENTIAL_CONDITION = "В жилом состоянии", "В жилом состоянии"
+    residential_condition = "В жилом состоянии", "В жилом состоянии"
 
 
 class Announcement(models.Model):
@@ -63,7 +63,14 @@ class Announcement(models.Model):
     description = models.TextField()
     main_photo = models.ImageField(upload_to=get_timestamp_path)
     is_actual = models.BooleanField(default=True)
-    is_moderated = models.BooleanField(default=False)
+    is_moderated = models.BooleanField(null=True)
+    moderation_status = models.CharField(max_length=20,
+                                         choices=[
+                                             ('price', 'Некорректная цена'),
+                                             ('photo', 'Некорректное фото'),
+                                             ('description',
+                                              'Некорректное описание')
+                                         ], null=True, blank=True)
     client = models.ForeignKey("users.CustomUser", on_delete=models.CASCADE, related_name='announcements')
     grounds_doc = models.CharField(
         max_length=100, choices=ApartmentDocument.choices
@@ -91,39 +98,47 @@ class Announcement(models.Model):
     date_published = models.DateTimeField(auto_now_add=True)
     watched_count = models.PositiveIntegerField(default=0)
     gallery = models.ForeignKey("builder.Gallery", on_delete=models.CASCADE)
+    square = models.PositiveSmallIntegerField(default=0)
+
+    price = models.PositiveIntegerField(default=0)
+
+    price_per_m2 = models.PositiveIntegerField(default=0)
 
     class Meta:
         db_table = "announcement"
 
 
-class Color(models.Model):
-    title = models.CharField()
+class PhraseChoice(models.TextChoices):
+    PHRASE1 = 'Подарок при покупке', 'Подарок при покупке'
+    PHRASE2 = 'Возможен торг', 'Возможен торг'
+    PHRASE3 = 'Квартира у моря', 'Квартира у моря'
+    PHRASE4 = 'В спальном районе', 'В спальном районе'
+    PHRASE5 = 'Вам повезло с ценой!', 'Вам повезло с ценой!'
+    PHRASE6 = 'Для большой семьи', 'Для большой семьи'
+    PHRASE7 = 'Семейное гнездышко', 'Семейное гнездышко'
+    PHRASE9 = 'Отдельная парковка', 'Отдельная парковка'
 
-    class Meta:
-        db_table = "color"
 
-
-class Phrase(models.Model):
-    title = models.CharField()
-
-    class Meta:
-        db_table = "phrase"
+class ColorChoice(models.TextChoices):
+    COLOR1 = 'Розовый', 'Розовый'
+    COLOR2 = 'Зелёный', 'Зелёный'
 
 
 class Promotion(models.Model):
-    phrase = models.BooleanField()
-    highlight = models.BooleanField()
-    highlight_color = models.ForeignKey(
-        "Color", on_delete=models.SET_NULL, null=True
+    phrase = models.BooleanField(default=False)
+    highlight = models.BooleanField(default=False)
+    highlight_color = models.CharField(
+        "Color", choices=ColorChoice.choices, null=True
     )
-    phrase_content = models.ForeignKey(
-        "Phrase", on_delete=models.SET_NULL, null=True
+    phrase_content = models.CharField(
+        "Phrase", choices=PhraseChoice.choices, null=True
     )
-    big_advert = models.BooleanField()
-    turbo = models.BooleanField()
-    raise_advert = models.BooleanField()
+    big_advert = models.BooleanField(default=False)
+    turbo = models.BooleanField(default=False)
+    raise_advert = models.BooleanField(default=False)
     price = models.PositiveIntegerField()
-    apartment = models.OneToOneField("Announcement", on_delete=models.CASCADE, null=True)
+    announcement = models.OneToOneField("Announcement", on_delete=models.CASCADE, null=True, related_name='promotion')
+    expiration_date = models.DateTimeField(null=True)
 
     class Meta:
         db_table = "promotion"
@@ -156,33 +171,49 @@ class ChatMessage(models.Model):
 class Subscription(models.Model):
     expiration_date = models.DateTimeField()
     auto_renewal = models.BooleanField()
-    client = models.OneToOneField("users.CustomUser", on_delete=models.CASCADE)
+    client = models.OneToOneField("users.CustomUser", on_delete=models.CASCADE, related_name='subscription')
 
     class Meta:
         db_table = "subscription"
 
 
 class Filter(models.Model):
-    address = models.TextField()
-    layout = models.CharField(max_length=100, choices=ApartmentLayout.choices)
+    address = models.TextField(null=True)
+    layout = models.CharField(max_length=100, choices=ApartmentLayout.choices, default='')
     grounds_doc = models.CharField(
-        max_length=100, choices=ApartmentDocument.choices
+        max_length=100, choices=ApartmentDocument.choices, default=''
     )
-    room_count = models.CharField(max_length=100, choices=ApartmentRooms.choices)
-    min_price = models.PositiveIntegerField()
-    max_price = models.PositiveIntegerField()
-    min_square = models.PositiveIntegerField()
-    max_square = models.PositiveIntegerField()
+    room_count = models.CharField(max_length=100, choices=ApartmentRooms.choices, default='')
+    min_price = models.PositiveIntegerField(null=True)
+    max_price = models.PositiveIntegerField(null=True)
+    min_square = models.PositiveIntegerField(null=True)
+    max_square = models.PositiveIntegerField(null=True)
     appointment = models.CharField(
-        max_length=100, choices=ApartmentAppointment.choices
+        max_length=100, choices=ApartmentAppointment.choices, default=''
     )
     payment_type = models.CharField(
-        max_length=100, choices=PaymentTypes.choices
+        max_length=100, choices=PaymentTypes.choices, default=''
     )
     condition = models.CharField(
-        max_length=100, choices=ApartmentCondition.choices
+        max_length=100, choices=ApartmentCondition.choices, default=''
     )
-    client = models.OneToOneField("users.CustomUser", on_delete=models.CASCADE)
+    client = models.ForeignKey("users.CustomUser", on_delete=models.CASCADE, related_name='filters')
 
     class Meta:
         db_table = "filter"
+
+
+class ComplaintReasonChoice(models.TextChoices):
+    DEFAULT = "", ""
+    THEFT = 'Мошенничество', 'Мошенничество'
+    BAD_PHOTO = 'Некорректное фото', 'Некорректное фото'
+    BAD_DESCRIPTION = 'Некорректное описание', 'Некорректное описание'
+
+
+class Complaint(models.Model):
+    sender = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, related_name='complaints')
+    announcement = models.ForeignKey('Announcement', on_delete=models.CASCADE, related_name='complaints')
+    description = models.TextField(null=True)
+
+    complaint_reason = models.CharField(max_length=100, choices=ComplaintReasonChoice.choices,
+                                        default=ComplaintReasonChoice.DEFAULT)

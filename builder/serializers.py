@@ -9,14 +9,14 @@ from django.db.models import QuerySet
 
 class ChessBoardSerializer(serializers.Serializer):
     def to_representation(self, instance):
-
         custom_data = {
             'title': f"{instance.corp}, {instance.title}",
             'section_id': instance.id,
-            'floors': list(instance.floors.values('id','scheme')),
+            'floors': list(instance.floors.values('id')),
             'floors_count': instance.floors.all().count(),
             'sewers': list(instance.sewers.values('id')),
-            'sewers_count':  instance.sewers.all().count(),
+            'sewers_count': instance.sewers.all().count(),
+            'apartments': instance.apartments.filter(is_moderated=True).values('id', 'number', 'floor_id', 'sewer_id'),
         }
         return custom_data
 
@@ -24,10 +24,12 @@ class ChessBoardSerializer(serializers.Serializer):
 class ApartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Apartment
-        exclude = ('owner', 'complex',)
+        exclude = ('owner', 'complex', 'is_moderated', 'moderation_status')
 
     def create(self, validated_data):
-        instance = Apartment.objects.create(**validated_data, owner=self.context['user'],complex=self.context['user'].complex)
+        instance = Apartment.objects.create(**validated_data, owner=self.context['user'],
+                                            is_moderated=self.context['is_moderated'],
+                                            complex=self.context['complex'])
         return instance
 
 
@@ -38,6 +40,7 @@ class BenefitSerializer(serializers.ModelSerializer):
 
 
 class FloorSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Floor
         exclude = ('section', 'id')

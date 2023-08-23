@@ -1,27 +1,30 @@
 from rest_framework import serializers
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from builder.serializers import GallerySerializer, ComplexSerializer
 from client.models import *
 from users.models import CustomUser
 
 
-class AnnouncementSerializer(serializers.ModelSerializer):
-    gallery = GallerySerializer(read_only=True)
-
-    class Meta:
-        model = Announcement
-        exclude = ('client', 'apartment', 'is_moderated')
-
-    def create(self, validated_data):
-        gallery = Gallery.objects.create()
-        instance = Announcement.objects.create(**validated_data, gallery=gallery, client=self.context['user'], )
-        return instance
-
-
 class PromotionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Promotion
         fields = "__all__"
+
+
+class AnnouncementSerializer(serializers.ModelSerializer):
+    gallery = GallerySerializer(read_only=True)
+    promotion = PromotionSerializer(read_only=True)
+
+    class Meta:
+        model = Announcement
+        exclude = ('client', 'is_moderated', 'watched_count', 'is_actual', 'moderation_status')
+
+    def create(self, validated_data):
+        gallery = Gallery.objects.create()
+        instance = Announcement.objects.create(**validated_data, gallery=gallery, client=self.context['user'])
+        return instance
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):
@@ -64,4 +67,14 @@ class SubscriptionSerializer(serializers.ModelSerializer):
 class FilterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Filter
+        exclude = ('client',)
+
+    def create(self, validated_data):
+        instance = Filter.objects.create(**validated_data, client=self.context['user'])
+        return instance
+
+
+class ComplaintSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Complaint
         fields = "__all__"
