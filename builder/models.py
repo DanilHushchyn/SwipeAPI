@@ -250,8 +250,8 @@ class Apartment(models.Model):
     price_per_m2 = models.PositiveIntegerField(default=0)
 
     def save(self, *args, **kwargs):
-        self.price_per_m2 = self.price / self.square
-        super().save(*args, **kwargs)
+        self.price_per_m2 = round(self.price / self.square)
+        super(Apartment, self).save(*args, **kwargs)
 
     class Meta:
         db_table = "apartment"

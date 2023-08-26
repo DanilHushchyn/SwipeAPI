@@ -4,6 +4,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
+from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
@@ -41,17 +42,13 @@ class AnnouncementFilter(filters.FilterSet):
 
 
 @extend_schema(tags=["Announcements"])
-@extend_schema(
-    methods=["GET"], description="Get all announcements. Permissions: IsAuthenticated"
-)
-@extend_schema(methods=["PUT", "PATCH"], description="Update specific announcement.")
-@extend_schema(methods=["POST"], description="Create new announcement.")
 class AnnouncementViewSet(viewsets.ModelViewSet):
     serializer_class = AnnouncementSerializer
     queryset = Announcement.objects.all()
     permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post', 'patch', 'delete', 'options', 'head']
     filterset_class = AnnouncementFilter
+    parser_classes = [JSONParser]
 
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'user': request.user})
@@ -59,6 +56,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(data=serializer.data)
 
+    @extend_schema(description='Permissions: IsAuthenticated & IsMyComplex.\n'
+                               "Get all unmoderated announcements list for current builder's complex.")
     @action(methods=['get'], detail=False, url_path="unmoderated_announcements_list",
             url_name="unmoderated_announcements_list")
     def unmoderated_announcements_list(self, request, *args, **kwargs):
@@ -67,10 +66,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         serializer = self.serializer_class(announcements, many=True)
         return Response(data=serializer.data)
 
-    @extend_schema(
-        methods=["GET"],
-        description="Get all announcements for authenticated user.",
-    )
+    @extend_schema(description='Permissions: IsAuthenticated & IsMyAnnouncements.\n'
+                               "Get all announcements list for current user.")
     @action(methods=['get'], detail=False, url_path='my_announcements', url_name=None, )
     def my_announcements(self, request, *args, **kwargs):
         filtered_queryset = self.filterset_class(request.GET, queryset=self.get_queryset()).qs
@@ -78,10 +75,8 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         serializer = self.serializer_class(announcements, many=True)
         return Response(serializer.data)
 
-    @extend_schema(
-        methods=["POST"],
-        description="Get favourite announcements for a authenticated user. Permissions: IsAuthenticated",
-    )
+    @extend_schema(description='Permissions: IsAuthenticated.\n'
+                               "(Add to favorites)/(Remove from favorites) announcement by id for current user.")
     @action(methods=["post"], detail=True, url_path="switch_announcement_favorite")
     def switch_complex_favorite(self, request, *args, **kwargs):
         if self.get_object() in request.user.favorite_announcements.all():
@@ -99,10 +94,8 @@ class SubscriptionViewSet(
     queryset = Subscription.objects.all()
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        methods=["GET"],
-        description="Subscription of authenticated user",
-    )
+    @extend_schema(description='Permissions: IsAuthenticated & IsMyProfile(only client, not admin or developer).\n'
+                               'Get subscription info for current user')
     @action(
         detail=False,
         methods=["get"],
@@ -113,10 +106,8 @@ class SubscriptionViewSet(
         serializer = self.serializer_class(subscription)
         return Response(data=serializer.data)
 
-    @extend_schema(
-        methods=["PATCH"],
-        description="Renewal subscription authenticated user",
-    )
+    @extend_schema(description='Permissions: IsAuthenticated & IsMyProfile(only client, not admin or developer).\nRenew'
+                               ' subscription for current user')
     @action(
         detail=False,
         methods=["patch"],
@@ -129,10 +120,8 @@ class SubscriptionViewSet(
 
         return Response("Подписка успешно продлена на месяц")
 
-    @extend_schema(
-        methods=["GET"],
-        description="Get authenticated user profile",
-    )
+    @extend_schema(description='Permissions: IsAuthenticated & IsMyProfile(only client, not admin or developer).\n'
+                               'Switch subscription auto-renewal for current user')
     @action(
         detail=False,
         methods=["PATCH"],
@@ -160,12 +149,21 @@ class PromotionViewSet(
     permission_classes = [IsAuthenticated]
     http_method_names = ['patch', 'post', 'get']
 
+    @extend_schema(description='Permissions: IsAuthenticated.\n'
+                               'Create promotion for some announcement.')
+    def create(self, request, *args, **kwargs):
+        return super().create(request, args, kwargs)
+
+    @extend_schema(description='Permissions: IsAuthenticated & IsMyPromotion.\n'
+                               'Get promotion info by announcement id')
     @action(methods=['get'], detail=False, url_path='(?P<announcement_id>[^/.]+)', )
     def get_promotion(self, request, *args, **kwargs):
         promotion = Promotion.objects.get(announcement_id=kwargs["announcement_id"])
         serializer = self.serializer_class(promotion)
         return Response(serializer.data)
 
+    @extend_schema(description='Permissions: IsAuthenticated & IsMyPromotion.\n'
+                               'Update promotion info by announcement id')
     @action(methods=['PATCH'], detail=False, url_path='update/(?P<announcement_id>[^/.]+)', url_name='update_promotion')
     def update_promotion(self, request, *args, **kwargs):
         instance = Promotion.objects.get(announcement_id=kwargs["announcement_id"])
@@ -292,6 +290,8 @@ class MessageViewSet(
 
     http_method_names = ['post', 'head', 'options', 'put', 'delete']
 
+    @extend_schema(description='Permissions: IsAuthenticated.\n'
+                               'Send message to some user.')
     def create(self, request):
         message = self.serializer_class(data=request.data)
         if message.is_valid():
@@ -310,6 +310,16 @@ class MessageViewSet(
             message = ChatMessageSerializer(obj)
         return Response(message.data)
 
+    @extend_schema(description='Permissions: IsAuthenticated.\n'
+                               'Update message.')
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    @extend_schema(description='Permissions: IsAuthenticated.\n'
+                               'Destroy message.')
+    def destroy(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
 
 @extend_schema(tags=["Complaints"])
 class ComplaintViewSet(
@@ -322,7 +332,6 @@ class ComplaintViewSet(
     permission_classes = [IsAuthenticated]
 
     http_method_names = ['post', 'head', 'options', 'get']
-
 
     @action(methods=['get'], detail=False, url_path='announcement_complaint_list/(?P<announcement_id>[^/.]+)',
             url_name='announcement_complaint_list')

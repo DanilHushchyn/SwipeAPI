@@ -11,10 +11,27 @@ from admin.serializers import NotarySerializer
 
 @extend_schema(tags=["Notaries"])
 class NotaryViewSet(viewsets.ModelViewSet):
-    """
-    A simple ViewSet for listing or retrieving users.
-    """
 
     queryset = Notary.objects.all()
     serializer_class = NotarySerializer
     permission_classes = [IsAuthenticated]
+
+    @extend_schema(description='Permissions: IsAuthenticated.\nGet list of notaries.')
+    def list(self, request, *args, **kwargs):
+        return super().list(request, args, kwargs)
+
+    @extend_schema(description='Permissions: IsAdminUser.\nGet notary by id.')
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, args, kwargs)
+
+    @extend_schema(description='Permissions: IsAdminUser.\nCreate new notary.')
+    def create(self, request, *args, **kwargs):
+        return super().create(request, args, kwargs)
+
+    @extend_schema(description='Permissions: IsAdminUser.\nUpdate notary by id.')
+    def update(self, request, *args, **kwargs):
+        return super().update(request, args, kwargs)
+
+    @extend_schema(description='Permissions: IsAdminUser.\nDelete notary by id.')
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, args, kwargs)

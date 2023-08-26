@@ -113,10 +113,9 @@ class CustomRegisterView(RegisterView):
     def get_response_data(self, user):
         # Add your custom logic here after registration
         # You can access the newly registered user using the 'user' argument
-
         # For example, you can create an additional profile for the user
         Contact.objects.create(user=user)
-        Subscription.objects.create(client=user, expiration_date=timezone.now(), auto_renewal=True)
+        Subscription.objects.create(client=user, expiration_date=timezone.now()+timezone.timedelta(days=30), auto_renewal=True)
 
         if user.is_builder:
             gallery = Gallery.objects.create()
@@ -125,7 +124,6 @@ class CustomRegisterView(RegisterView):
             Benefit.objects.create(complex_id=obj.id).save()
 
         # You can also perform other operations like sending an email, creating related objects, etc.
-
         # Call the parent method to get the default response data
         data = super().get_response_data(user)
         return data

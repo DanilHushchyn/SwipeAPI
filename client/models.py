@@ -57,7 +57,6 @@ class ApartmentCondition(models.TextChoices):
 
 
 class Announcement(models.Model):
-    complex = models.ForeignKey("builder.Complex", on_delete=models.CASCADE)
     apartment = models.OneToOneField('builder.Apartment', models.CASCADE, null=True, related_name='announcement')
     address = models.TextField()
     description = models.TextField()
@@ -97,15 +96,28 @@ class Announcement(models.Model):
     communication_type = models.CharField(choices=ApartmentCommunication.choices)
     date_published = models.DateTimeField(auto_now_add=True)
     watched_count = models.PositiveIntegerField(default=0)
-    gallery = models.ForeignKey("builder.Gallery", on_delete=models.CASCADE)
     square = models.PositiveSmallIntegerField(default=0)
-
     price = models.PositiveIntegerField(default=0)
-
     price_per_m2 = models.PositiveIntegerField(default=0)
+
+    def save(self, *args, **kwargs):
+        self.price_per_m2 = round(self.price / self.square)
+        super(Announcement, self).save(*args, **kwargs)
 
     class Meta:
         db_table = "announcement"
+
+
+class GalleryAnnouncement(models.Model):
+    image = models.ImageField(upload_to=get_timestamp_path)
+    order = models.PositiveIntegerField(default=0)
+    announcement = models.ForeignKey(
+        Announcement, on_delete=models.CASCADE, related_name='images'
+    )
+
+    class Meta:
+        ordering = ('order',)
+        db_table = 'gallery_announcement'
 
 
 class PhraseChoice(models.TextChoices):
@@ -125,6 +137,7 @@ class ColorChoice(models.TextChoices):
 
 
 class Promotion(models.Model):
+    is_active = models.BooleanField(default=True)
     phrase = models.BooleanField(default=False)
     highlight = models.BooleanField(default=False)
     highlight_color = models.CharField(
@@ -172,6 +185,7 @@ class Subscription(models.Model):
     expiration_date = models.DateTimeField()
     auto_renewal = models.BooleanField()
     client = models.OneToOneField("users.CustomUser", on_delete=models.CASCADE, related_name='subscription')
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         db_table = "subscription"

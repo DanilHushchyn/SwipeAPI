@@ -1,5 +1,6 @@
 MANAGE = python manage.py
-
+ccc:
+	ls
 run:
 	$(MANAGE) runserver
 

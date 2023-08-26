@@ -24,7 +24,7 @@ class ChessBoardSerializer(serializers.Serializer):
 class ApartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Apartment
-        exclude = ('owner', 'complex', 'is_moderated', 'moderation_status')
+        exclude = ('owner', 'complex', 'is_moderated', 'moderation_status', 'price_per_m2')
 
     def create(self, validated_data):
         instance = Apartment.objects.create(**validated_data, owner=self.context['user'],
@@ -40,7 +40,6 @@ class BenefitSerializer(serializers.ModelSerializer):
 
 
 class FloorSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Floor
         exclude = ('section', 'id')
