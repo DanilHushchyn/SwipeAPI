@@ -1,14 +1,16 @@
 from dateutil.relativedelta import relativedelta
 from django.db.models import Q
+from drf_psq import Rule, PsqMixin
 from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
-from rest_framework.parsers import JSONParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import JSONParser, MultiPartParser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
+from client.permissions import IsMyAnnouncement, IsBuilder, IsClient, IsMyPromotion
 from client.serializers import *
 from users.models import *
 from django_filters import rest_framework as filters
@@ -41,34 +43,88 @@ class AnnouncementFilter(filters.FilterSet):
         ]
 
 
-@extend_schema(tags=["Announcements"])
-class AnnouncementViewSet(viewsets.ModelViewSet):
-    serializer_class = AnnouncementSerializer
-    queryset = Announcement.objects.all()
+@extend_schema(tags=["Moderation-Announcements"])
+class AnnouncementModerationViewSet(
+    PsqMixin,
+    mixins.ListModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet
+):
+    serializer_class = AnnouncementModerationSerializer
+    queryset = Announcement.objects.filter(is_moderated=None)
     permission_classes = [IsAuthenticated]
-    http_method_names = ['get', 'post', 'patch', 'delete', 'options', 'head']
+    http_method_names = ['get', 'patch']
     filterset_class = AnnouncementFilter
     parser_classes = [JSONParser]
+    psq_rules = {
+        ('list', 'update'): [
+            Rule([IsAdminUser], AnnouncementModerationSerializer),
+        ],
+    }
 
+    @extend_schema(description='Permissions: IsAdmin.\n'
+                               "Moderate announcement by id.")
+    def update(self, request, *args, **kwargs):
+        return super().update(request, args, kwargs)
+
+    @extend_schema(description='Permissions: IsAdmin.\n'
+                               "Get all unmoderated announcements list.")
+    def list(self, request, *args, **kwargs):
+        return super().list(self, request, args, kwargs)
+
+
+@extend_schema(tags=["Announcements"])
+class AnnouncementViewSet(
+    PsqMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet
+):
+    serializer_class = AnnouncementSerializer
+    queryset = Announcement.objects.all()
+    http_method_names = ['get', 'post', 'patch', 'delete']
+    filterset_class = AnnouncementFilter
+    parser_classes = [JSONParser]
+    psq_rules = {
+        ('partial_update',): [
+            Rule([IsAdminUser | IsMyAnnouncement], AnnouncementSerializer),
+        ],
+        ('create',): [
+            Rule([IsBuilder | IsClient], AnnouncementSerializer),
+        ],
+        ('destroy',): [
+            Rule([IsMyAnnouncement], AnnouncementSerializer),
+        ],
+        ('retrieve', 'list', 'switch_complex_favorite'): [
+            Rule([IsAuthenticated], AnnouncementSerializer),
+        ],
+        ('my_announcements',): [
+            Rule([IsClient], AnnouncementSerializer),
+        ],
+    }
+
+    @extend_schema(description='Permissions: IsAuthenticated.\n'
+                               "(Add to favorites)/(Remove from favorites) announcement by id for current user.")
+    def retrieve(self, request, *args, **kwargs):
+        obj = self.get_object()
+        obj.watched_count = obj.watched_count + 1
+        obj.save()
+        return super().retrieve(request, args, kwargs)
+
+    @extend_schema(description='Permissions: IsAuthenticated.\n'
+                               "(Add to favorites)/(Remove from favorites) announcement by id for current user.")
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'user': request.user})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(data=serializer.data)
 
-    @extend_schema(description='Permissions: IsAuthenticated & IsMyComplex.\n'
-                               "Get all unmoderated announcements list for current builder's complex.")
-    @action(methods=['get'], detail=False, url_path="unmoderated_announcements_list",
-            url_name="unmoderated_announcements_list")
-    def unmoderated_announcements_list(self, request, *args, **kwargs):
-        filtered_queryset = self.filterset_class(request.GET, queryset=self.get_queryset()).qs
-        announcements = filtered_queryset.filter(is_moderated=None)
-        serializer = self.serializer_class(announcements, many=True)
-        return Response(data=serializer.data)
-
-    @extend_schema(description='Permissions: IsAuthenticated & IsMyAnnouncements.\n'
+    @extend_schema(description='Permissions: IsAuthenticated & IsClient.\n'
                                "Get all announcements list for current user.")
-    @action(methods=['get'], detail=False, url_path='my_announcements', url_name=None, )
+    @action(methods=['get'], detail=False)
     def my_announcements(self, request, *args, **kwargs):
         filtered_queryset = self.filterset_class(request.GET, queryset=self.get_queryset()).qs
         announcements = filtered_queryset.filter(client=request.user)
@@ -85,14 +141,26 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         request.user.favorite_announcements.add(self.get_object())
         return Response("Успешно добавлен")
 
+    @extend_schema(description='Permissions: IsMyAnnouncement | IsAdmin.\n'
+                               "Update announcement by id for current user or admin.")
+    def update(self, request, *args, **kwargs):
+        return super().update(request, args, kwargs)
+
 
 @extend_schema(tags=["Subscriptions"])
 class SubscriptionViewSet(
+    PsqMixin,
     viewsets.GenericViewSet
 ):
     serializer_class = SubscriptionSerializer
     queryset = Subscription.objects.all()
     permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser]
+    psq_rules = {
+        ('my_subscription', 'renewal', 'switch_autorenewal'): [
+            Rule([IsBuilder | IsClient], AnnouncementSerializer),
+        ]
+    }
 
     @extend_schema(description='Permissions: IsAuthenticated & IsMyProfile(only client, not admin or developer).\n'
                                'Get subscription info for current user')
@@ -141,13 +209,24 @@ class SubscriptionViewSet(
 
 @extend_schema(tags=["Promotions"])
 class PromotionViewSet(
+    PsqMixin,
     mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
     serializer_class = PromotionSerializer
     queryset = Promotion.objects.all()
     permission_classes = [IsAuthenticated]
-    http_method_names = ['patch', 'post', 'get']
+    http_method_names = ['patch', 'post', 'get', 'update']
+    parser_classes = [JSONParser]
+    psq_rules = {
+        ('create',): [
+            Rule([IsBuilder | IsClient], PromotionSerializer),
+        ],
+        ('retrieve', 'partial_update'): [
+            Rule([IsMyPromotion], PromotionSerializer),
+        ]
+    }
 
     @extend_schema(description='Permissions: IsAuthenticated.\n'
                                'Create promotion for some announcement.')
@@ -156,17 +235,15 @@ class PromotionViewSet(
 
     @extend_schema(description='Permissions: IsAuthenticated & IsMyPromotion.\n'
                                'Get promotion info by announcement id')
-    @action(methods=['get'], detail=False, url_path='(?P<announcement_id>[^/.]+)', )
-    def get_promotion(self, request, *args, **kwargs):
-        promotion = Promotion.objects.get(announcement_id=kwargs["announcement_id"])
+    def retrieve(self, request, *args, **kwargs):
+        promotion = Promotion.objects.get(pk=kwargs["pk"])
         serializer = self.serializer_class(promotion)
         return Response(serializer.data)
 
     @extend_schema(description='Permissions: IsAuthenticated & IsMyPromotion.\n'
                                'Update promotion info by announcement id')
-    @action(methods=['PATCH'], detail=False, url_path='update/(?P<announcement_id>[^/.]+)', url_name='update_promotion')
-    def update_promotion(self, request, *args, **kwargs):
-        instance = Promotion.objects.get(announcement_id=kwargs["announcement_id"])
+    def partial_update(self, request, *args, **kwargs):
+        instance = Promotion.objects.get(pk=kwargs["pk"])
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -179,6 +256,7 @@ class FilterViewSet(viewsets.ModelViewSet):
     queryset = Filter.objects.all()
     permission_classes = [IsAuthenticated]
     http_method_names = ['post', 'delete', 'get']
+    parser_classes = [JSONParser]
 
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'user': request.user})
@@ -251,6 +329,7 @@ class ChatViewSet(
     serializer_class = ChatSerializer
     queryset = Chat.objects.all()
     permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser]
 
     @extend_schema(
         methods=["GET"],
@@ -287,6 +366,7 @@ class MessageViewSet(
     serializer_class = ChatMessageSerializer
     queryset = ChatMessage.objects.all()
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]
 
     http_method_names = ['post', 'head', 'options', 'put', 'delete']
 
@@ -298,7 +378,6 @@ class MessageViewSet(
             obj = message.save()
             obj.sender = self.request.user
             chat_set = Chat.objects.filter(users__in=[obj.recipient]).filter(users__in=[self.request.user])
-            print(chat_set.count())
             if chat_set.count() == 0:
                 chat = Chat.objects.create()
                 chat.users.set([obj.sender, obj.recipient])
@@ -330,6 +409,7 @@ class ComplaintViewSet(
     serializer_class = ComplaintSerializer
     queryset = Complaint.objects.all()
     permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser]
 
     http_method_names = ['post', 'head', 'options', 'get']
 

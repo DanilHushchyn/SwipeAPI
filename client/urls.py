@@ -4,6 +4,7 @@ from client.views import *
 
 router = DefaultRouter()
 router.register(prefix=r"announcements", viewset=AnnouncementViewSet, basename="announcements")
+router.register(prefix=r"moderation_announcements", viewset=AnnouncementModerationViewSet, basename="moderation_announcements")
 router.register(prefix=r"complaints", viewset=ComplaintViewSet, basename="complaints")
 router.register(
     prefix=r"subscriptions",

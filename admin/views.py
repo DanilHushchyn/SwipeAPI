@@ -1,8 +1,10 @@
 from django.shortcuts import render
+from drf_psq import Rule, PsqMixin
 from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 
 from admin.models import Notary
@@ -10,11 +12,18 @@ from admin.serializers import NotarySerializer
 
 
 @extend_schema(tags=["Notaries"])
-class NotaryViewSet(viewsets.ModelViewSet):
-
+class NotaryViewSet(PsqMixin, viewsets.ModelViewSet):
     queryset = Notary.objects.all()
     serializer_class = NotarySerializer
-    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]
+    psq_rules = {
+        ('create', 'update', 'partial_update', 'destroy'): [
+            Rule([IsAdminUser], NotarySerializer),
+        ],
+        ('retrieve', 'list'): [
+            Rule([IsAuthenticated | IsAdminUser], NotarySerializer),
+        ]
+    }
 
     @extend_schema(description='Permissions: IsAuthenticated.\nGet list of notaries.')
     def list(self, request, *args, **kwargs):

@@ -57,19 +57,24 @@ class ApartmentCondition(models.TextChoices):
 
 
 class Announcement(models.Model):
+    complex = models.ForeignKey('builder.Complex', on_delete=models.CASCADE, null=True)
     apartment = models.OneToOneField('builder.Apartment', models.CASCADE, null=True, related_name='announcement')
     address = models.TextField()
     description = models.TextField()
-    main_photo = models.ImageField(upload_to=get_timestamp_path)
+    main_photo = models.ImageField(upload_to=get_timestamp_path, null=True)
     is_actual = models.BooleanField(default=True)
     is_moderated = models.BooleanField(null=True)
-    moderation_status = models.CharField(max_length=20,
-                                         choices=[
-                                             ('price', 'Некорректная цена'),
-                                             ('photo', 'Некорректное фото'),
-                                             ('description',
-                                              'Некорректное описание')
-                                         ], null=True, blank=True)
+    moderation_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('price', 'Некорректная цена'),
+            ('photo', 'Некорректное фото'),
+            ('description',
+             'Некорректное описание')
+        ],
+        null=True,
+        blank=True
+    )
     client = models.ForeignKey("users.CustomUser", on_delete=models.CASCADE, related_name='announcements')
     grounds_doc = models.CharField(
         max_length=100, choices=ApartmentDocument.choices

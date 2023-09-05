@@ -582,6 +582,20 @@ python-jose = ["python-jose (==3.3.0)"]
 test = ["cryptography", "pytest", "pytest-cov", "pytest-django", "pytest-xdist", "tox"]
 
 [[package]]
+name = "drf-compound-fields"
+version = "2.0.0"
+description = "Django-REST-framework serializer fields for compound types."
+optional = false
+python-versions = "*"
+files = [
+    {file = "drf-compound-fields-2.0.0.tar.gz", hash = "sha256:12e8acf5b9971f4e3be0542174fd0728bc47e718bdd82f0f85daa9b83c1cc8c5"},
+]
+
+[package.dependencies]
+Django = "*"
+djangorestframework = "<4"
+
+[[package]]
 name = "drf-extra-fields"
 version = "3.7.0"
 description = "Additional fields for Django Rest Framework."
@@ -1468,4 +1482,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "345a4094fc824bc9d2487607c23075d4a9da496bcc8af09bf5a054e24348f7df"
+content-hash = "9820aafa368a01b9fd23037fbed6cd8dd41d9e7ee4b0873e652df85d2f19fd18"

@@ -75,13 +75,9 @@ class Complex(models.Model):
     main_photo = models.ImageField(
         upload_to=get_timestamp_path, null=True
     )
-    gallery = models.OneToOneField("Gallery", on_delete=models.CASCADE, null=True, related_name='complex')
-    doc_kit = models.ForeignKey("DocKit", on_delete=models.CASCADE, null=True)
     min_price = models.PositiveIntegerField(default=0)
     price_per_square = models.PositiveIntegerField(default=0)
     min_squares = models.PositiveIntegerField(default=0)
-    max_squares = models.PositiveIntegerField(default=0)
-    square_price = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=100, choices=ComplexStatus.choices, default=ComplexStatus.FLATS)
     level = models.CharField(max_length=100, choices=ComplexLevel.choices, default=ComplexLevel.STANDART)
     type = models.CharField(max_length=100, choices=ComplexTypeHouse.choices, default=ComplexTypeHouse.MULTI_FAMILY)
@@ -115,51 +111,32 @@ class Complex(models.Model):
     def __str__(self):
         return f"{self.title}"
 
+    def save(self, *args, **kwargs):
+        self.min_price = round(self.price_per_square * self.min_squares)
+        super(Complex, self).save(*args, **kwargs)
+
     class Meta:
         db_table = "complex"
 
 
-class Gallery(models.Model):
-    def __str__(self):
-        return f"{self.id}"
-
-    class Meta:
-        db_table = "gallery"
-
-
-class Photo(models.Model):
-    img = models.ImageField(upload_to=get_timestamp_path)
-
-    gallery = models.ForeignKey(
-        "Gallery",
-        on_delete=models.CASCADE,
-        null=True,
-        related_name="photos",
+class GalleryComplex(models.Model):
+    image = models.ImageField(upload_to=get_timestamp_path)
+    complex = models.ForeignKey(
+        Complex, on_delete=models.CASCADE, related_name='images'
     )
 
     class Meta:
-        db_table = "photo"
+        db_table = 'gallery_complex'
 
 
-class DocKit(models.Model):
-    def __str__(self):
-        return f"{self.id}"
-
-    class Meta:
-        db_table = "doc_kit"
-
-
-class File(models.Model):
+class DocKitComplex(models.Model):
     file = models.FileField(upload_to=f'complexes/doc-kit/')
-    title = models.CharField(max_length=50, default='document')
-    file_format = models.CharField(max_length=5, null=True, blank=True)
-
-    dock_kit = models.ForeignKey(
-        "DocKit", on_delete=models.CASCADE, related_name="files", null=True
+    complex = models.ForeignKey(
+        Complex, on_delete=models.CASCADE, related_name='documents'
     )
 
     class Meta:
-        db_table = "file"
+        db_table = 'dockit_complex'
 
 
 class Benefit(models.Model):

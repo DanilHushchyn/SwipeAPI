@@ -3,7 +3,7 @@ from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from builder.serializers import GallerySerializer, ComplexSerializer
+from builder.serializers import ComplexSerializer
 from client.models import *
 from users.models import CustomUser
 
@@ -16,16 +16,88 @@ class PromotionSerializer(serializers.ModelSerializer):
 
 class AnnouncementGallerySerializer(serializers.ModelSerializer):
     image = Base64ImageField()
-    id = serializers.IntegerField(read_only=False)
+    id = serializers.IntegerField(read_only=False, required=False)
 
     class Meta:
         model = GalleryAnnouncement
         fields = ('id', 'order', 'image')
 
 
+class AnnouncementModerationSerializer(serializers.ModelSerializer):
+    images = AnnouncementGallerySerializer(many=True, read_only=True)
+    promotion = PromotionSerializer(read_only=True)
+    apartment = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = Announcement
+        fields = (
+            'id',
+            'is_moderated',
+            'moderation_status',
+            'promotion',
+            'apartment',
+            'images',
+            'address',
+            'description',
+            'main_photo',
+            'is_actual',
+            'client',
+            'grounds_doc',
+            'appointment',
+            'room_count',
+            'layout',
+            'living_condition',
+            'kitchen_square',
+            'balcony_or_loggia',
+            'heating_type',
+            'payment_type',
+            'agent_commission',
+            'communication_type',
+            'payment_type',
+            'date_published',
+            'watched_count',
+            'square',
+            'price',
+            'price_per_m2',
+            'complex',
+        )
+        read_only_fields = [
+            'id',
+            'address',
+            'description',
+            'main_photo',
+            'is_actual',
+            'client',
+            'grounds_doc',
+            'appointment',
+            'room_count',
+            'layout',
+            'living_condition',
+            'kitchen_square',
+            'balcony_or_loggia',
+            'heating_type',
+            'payment_type',
+            'agent_commission',
+            'communication_type',
+            'payment_type',
+            'date_published',
+            'watched_count',
+            'square',
+            'price',
+            'price_per_m2',
+            'complex',
+        ]
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
+
+
 class AnnouncementSerializer(serializers.ModelSerializer):
     images = AnnouncementGallerySerializer(many=True, required=False)
-    main_photo = Base64ImageField()
+    main_photo = Base64ImageField(required=False)
     promotion = PromotionSerializer(read_only=True)
     apartment = serializers.PrimaryKeyRelatedField(required=False, queryset=Apartment.objects.all())
 
@@ -47,19 +119,22 @@ class AnnouncementSerializer(serializers.ModelSerializer):
         if 'images' in validated_data:
             images_data = validated_data.pop('images')
             images = {img.id: img for img in instance.images.all()}
+            instance.images.exclude(id__in=[img['id'] for img in images_data if 'id' in img]).delete()
             for image_data in images_data:
                 image_id = image_data.get('id', None)
                 if image_id:
-                    image = images.get(image_id, None)
-                    if image:
-                        image.order = image_data.get('order', image.order)
-                        image.save()
+                    img = images.get(image_id, None)
+                    if img:
+                        img.order = image_data.get('order', img.order)
+                        img.image = image_data.get('image', img.image)
+                        img.save()
                 else:
                     GalleryAnnouncement.objects.create(announcement=instance, **image_data)
 
-        instance.images.exclude(id__in=[img['id'] for img in images_data if 'id' in img]).delete()
-
-        # instance.images.exclude(pk__in=imgs).delete()
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.is_moderated = None
+        instance.moderation_status = None
         instance.save()
         return instance
 

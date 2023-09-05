@@ -1,10 +1,14 @@
+from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
+from rest_framework.fields import _UnvalidatedField
+from rest_framework.utils import html
 
 from builder.models import *
 import builder.serializers
 from django.core import serializers as serialize_queryset
 
 from django.db.models import QuerySet
+from collections.abc import Mapping
 
 
 class ChessBoardSerializer(serializers.Serializer):
@@ -21,7 +25,31 @@ class ChessBoardSerializer(serializers.Serializer):
         return custom_data
 
 
+class ApartmentModerationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Apartment
+        fields = (
+            'is_moderated',
+            'moderation_status',
+        )
+        read_only_fields = [
+            'number',
+            'scheme',
+            'section',
+            'floor',
+            'sewer',
+            'complex',
+            'owner',
+            'square',
+            'price',
+            'is_booked',
+            'price_per_m2',
+        ]
+
+
 class ApartmentSerializer(serializers.ModelSerializer):
+    scheme = Base64ImageField(required=False)
+
     class Meta:
         model = Apartment
         exclude = ('owner', 'complex', 'is_moderated', 'moderation_status', 'price_per_m2')
@@ -103,36 +131,6 @@ class CorpSerializer(serializers.ModelSerializer):
         return instance
 
 
-class PhotoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Photo
-        fields = "__all__"
-
-
-class GallerySerializer(serializers.ModelSerializer):
-    photos = PhotoSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Gallery
-        fields = '__all__'
-        read_only_fields = ['photos']
-
-
-class FileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = File
-        fields = "__all__"
-
-
-class DocKitSerializer(serializers.ModelSerializer):
-    files = FileSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = DocKit
-        exclude = ('id',)
-        read_only_fields = ['files']
-
-
 class NewsSerializer(serializers.ModelSerializer):
     class Meta:
         model = News
@@ -140,56 +138,73 @@ class NewsSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 
+class СomplexGallerySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GalleryComplex
+        fields = ('id', 'image')
+
+
+class СomplexDocKitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DocKitComplex
+        fields = ('id', 'file')
+
+
 class ComplexSerializer(serializers.ModelSerializer):
     news = NewsSerializer(many=True, read_only=True)
-    benefit = BenefitSerializer(required=False)
+    benefit = BenefitSerializer(read_only=True)
+
     corps = CorpSerializer(many=True, read_only=True)
-    gallery = GallerySerializer(read_only=True)
-    doc_kit = DocKitSerializer(read_only=True)
+    images = СomplexGallerySerializer(read_only=True, many=True)
+    documents = СomplexDocKitSerializer(read_only=True, many=True)
+    gallery = serializers.ListField(child=serializers.ImageField(required=True), write_only=True, required=True)
+    # gallery = serializers.ListField(child=СomplexGallerySerializer(), write_only=True, required=True)
+    dockit = serializers.ListField(child=serializers.FileField(required=True), write_only=True, required=True)
 
     class Meta:
         model = Complex
-        exclude = ('builder',)
-        read_only_fields = ['id', 'date_added', 'news', 'gallery', 'doc_kit']
+        exclude = ('builder', 'min_price')
+        # read_only_fields = ['id', 'date_added', 'news', 'images', 'documents']
 
-    def update(self, instance, validated_data):
-        if 'benefit' in validated_data:
-            benefit = Benefit.objects.get(complex=instance)
-            benefit.playground = validated_data['benefit'].get('playground', benefit.playground)
-            benefit.school = validated_data['benefit'].get('school', benefit.school)
-            benefit.tennis_court = validated_data['benefit'].get('tennis_court', benefit.tennis_court)
-            benefit.shopping_mall = validated_data['benefit'].get('shopping_mall', benefit.shopping_mall)
-            benefit.subway = validated_data['benefit'].get('subway', benefit.subway)
-            benefit.park = validated_data['benefit'].get('park', benefit.park)
-            benefit.save()
-        instance.title = validated_data.get('title', instance.title)
-        instance.description = validated_data.get('description', instance.description)
-        instance.address = validated_data.get('address', instance.address)
-        instance.coordinate = validated_data.get('coordinate', instance.coordinate)
-        instance.main_photo = validated_data.get('main_photo', instance.main_photo)
-        instance.min_price = validated_data.get('min_price', instance.min_price)
-        instance.price_per_square = validated_data.get('price_per_square', instance.price_per_square)
-        instance.min_squares = validated_data.get('min_squares', instance.min_squares)
-        instance.max_squares = validated_data.get('max_squares', instance.max_squares)
-        instance.square_price = validated_data.get('square_price', instance.square_price)
-        instance.status = validated_data.get('status', instance.status)
-        instance.level = validated_data.get('level', instance.level)
-        instance.type = validated_data.get('type', instance.type)
-        instance.material_type = validated_data.get('material_type', instance.material_type)
-        instance.perimeter_status = validated_data.get('perimeter_status', instance.perimeter_status)
-        instance.sea_destination_m = validated_data.get('sea_destination_m', instance.sea_destination_m)
-        instance.ceiling_height_m = validated_data.get('ceiling_height_m', instance.ceiling_height_m)
-        instance.gas = validated_data.get('gas', instance.gas)
-        instance.heating = validated_data.get('heating', instance.heating)
-        instance.electricity = validated_data.get('electricity', instance.electricity)
-        instance.water_supply = validated_data.get('water_supply', instance.water_supply)
-        instance.sewerage = validated_data.get('sewerage', instance.sewerage)
-        instance.registration_type = validated_data.get('registration_type', instance.registration_type)
-        instance.payment_type = validated_data.get('payment_type', instance.payment_type)
-        instance.payment_target = validated_data.get('payment_target', instance.payment_target)
-        instance.price_in_contract = validated_data.get('price_in_contract', instance.price_in_contract)
-        instance.price_in_contract = validated_data.get('price_in_contract', instance.price_in_contract)
+    def create(self, validated_data):
+        gallery = validated_data.pop('gallery', False)
+        dockit = validated_data.pop('dockit', False)
 
+        instance = Complex.objects.create(
+            **validated_data, builder=self.context.get('builder')
+        )
+        if gallery:
+            for image in gallery:
+                GalleryComplex.objects.create(
+                    image=image, complex=instance
+                )
+        if dockit:
+            for doc in dockit:
+                DocKitComplex.objects.create(
+                    file=doc, complex=instance
+                )
+        return instance
+
+    def update(self, instance: Complex, validated_data):
+        if 'gallery' in validated_data:
+            gallery = validated_data.pop('gallery', False)
+            if gallery:
+                instance.images.all().delete()
+                for image in gallery:
+                    GalleryComplex.objects.create(
+                        image=image, complex=instance
+                    )
+        if 'dockit' in validated_data:
+            dockit = validated_data.pop('dockit', False)
+            if dockit:
+                instance.documents.all().delete()
+                for doc in dockit:
+                    DocKitComplex.objects.create(
+                        file=doc, complex=instance
+                    )
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
         instance.save()
 
         return instance

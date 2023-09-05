@@ -1,15 +1,18 @@
 from dj_rest_auth.registration.views import RegisterView
 from django.db.models import Count
+from drf_psq import Rule, PsqMixin
 from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets, mixins, status, serializers
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import JSONParser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 
 from builder.models import *
 from client.models import Chat, Subscription
 from users.models import CustomUser, Contact
+from users.permissions import IsMyProfile
 from users.serializers import ProfileSerializer, ContactSerializer
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
@@ -17,6 +20,7 @@ from dateutil.relativedelta import relativedelta
 
 @extend_schema(tags=["Profile"])
 class ProfileViewSet(
+    PsqMixin,
     mixins.DestroyModelMixin,
     mixins.RetrieveModelMixin,
     mixins.ListModelMixin,
@@ -24,8 +28,16 @@ class ProfileViewSet(
 ):
     serializer_class = ProfileSerializer
     queryset = CustomUser.objects.all()
-    permission_classes = [IsAuthenticated]
-    http_method_names = ['get', "put", 'patch', 'delete', 'head', 'options']
+    http_method_names = ['get', "put", 'patch', 'delete']
+    parser_classes = [JSONParser]
+    psq_rules = {
+        ('list', 'blacklist', 'switch_blacklist'): [
+            Rule([IsAdminUser], ProfileSerializer),
+        ],
+        ('my_profile', 'retrieve', 'destroy', 'update_my_profile'): [
+            Rule([IsAuthenticated], ProfileSerializer),
+        ]
+    }
 
     def destroy(self, request, *args, **kwargs):
         user = CustomUser.objects.get(pk=kwargs['pk'])
@@ -35,6 +47,14 @@ class ProfileViewSet(
                 chat.delete()
         user.delete()
         return Response('Профиль успешно удалён', status.HTTP_200_OK)
+
+    def list(self, request, *args, **kwargs):
+        active_profiles = self.queryset.filter(is_active=True)
+        serializer = self.serializer_class(active_profiles, many=True)
+        return Response({
+            "count": active_profiles.count(),
+            "data": serializer.data,
+        })
 
     @extend_schema(
         methods=["GET"],
@@ -95,19 +115,6 @@ class ProfileViewSet(
         user.save()
         return Response('Пользователь добавлен в чёрный список')
 
-    def list(self, request, *args, **kwargs):
-        serializer = self.serializer_class(self.queryset, many=True)
-        return Response({
-            "count": self.queryset.count(),
-            "data": serializer.data,
-        })
-
-    class ContactViewSet(viewsets.ModelViewSet):
-        serializer_class = ContactSerializer
-        queryset = Contact.objects.all()
-
-        http_method_names = ['get', 'patch']
-
 
 class CustomRegisterView(RegisterView):
     def get_response_data(self, user):
@@ -115,13 +122,14 @@ class CustomRegisterView(RegisterView):
         # You can access the newly registered user using the 'user' argument
         # For example, you can create an additional profile for the user
         Contact.objects.create(user=user)
-        Subscription.objects.create(client=user, expiration_date=timezone.now()+timezone.timedelta(days=30), auto_renewal=True)
+        Subscription.objects.create(client=user, expiration_date=timezone.now() + timezone.timedelta(days=30),
+                                    auto_renewal=True)
 
-        if user.is_builder:
-            gallery = Gallery.objects.create()
-            doc_kit = DocKit.objects.create()
-            obj = Complex.objects.create(builder=user, gallery=gallery, doc_kit=doc_kit)
-            Benefit.objects.create(complex_id=obj.id).save()
+        # if user.is_builder:
+        # gallery = Gallery.objects.create()
+        # doc_kit = DocKit.objects.create()
+        # obj = Complex.objects.create(builder=user)
+        # Benefit.objects.create(complex_id=obj.id).save()
 
         # You can also perform other operations like sending an email, creating related objects, etc.
         # Call the parent method to get the default response data

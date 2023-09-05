@@ -76,8 +76,11 @@ class ProfileSerializer(serializers.ModelSerializer):
             'phone',
             'email',
             'avatar',
+            'is_active',
+            'is_staff',
+            'last_login',
+            'date_joined',
             'notification_type',
             'agent_contacts',
             'redirect_notifications_to_agent',
-
         ]
