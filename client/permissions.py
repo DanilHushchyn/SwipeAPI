@@ -12,6 +12,7 @@ class IsMyAnnouncement(permissions.BasePermission):
 class IsMyPromotion(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj: Promotion):
+        print(obj.announcement.client == request.user)
         return obj.announcement.client == request.user
 
 
@@ -21,7 +22,8 @@ class IsClient(permissions.BasePermission):
     """
 
     def has_permission(self, request, view):
-        return bool(request.user and ~request.user.is_staff and ~request.user.is_builder)
+
+        return bool(request.user.is_authenticated and request.user and ~request.user.is_staff and ~request.user.is_builder)
 
 
 class IsBuilder(permissions.BasePermission):
@@ -30,4 +32,4 @@ class IsBuilder(permissions.BasePermission):
     """
 
     def has_permission(self, request, view):
-        return bool(request.user and ~request.user.is_staff and request.user.is_builder)
+        return bool(request.user.is_authenticated and request.user and ~request.user.is_staff and request.user.is_builder)

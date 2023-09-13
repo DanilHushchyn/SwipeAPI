@@ -157,9 +157,9 @@ class ComplexSerializer(serializers.ModelSerializer):
     corps = CorpSerializer(many=True, read_only=True)
     images = СomplexGallerySerializer(read_only=True, many=True)
     documents = СomplexDocKitSerializer(read_only=True, many=True)
-    gallery = serializers.ListField(child=serializers.ImageField(required=True), write_only=True, required=True)
+    gallery = serializers.ListField(child=serializers.ImageField(required=True), write_only=True, required=False)
     # gallery = serializers.ListField(child=СomplexGallerySerializer(), write_only=True, required=True)
-    dockit = serializers.ListField(child=serializers.FileField(required=True), write_only=True, required=True)
+    dockit = serializers.ListField(child=serializers.FileField(required=True), write_only=True, required=False)
 
     class Meta:
         model = Complex
@@ -169,7 +169,6 @@ class ComplexSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         gallery = validated_data.pop('gallery', False)
         dockit = validated_data.pop('dockit', False)
-
         instance = Complex.objects.create(
             **validated_data, builder=self.context.get('builder')
         )

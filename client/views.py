@@ -1,5 +1,6 @@
 from dateutil.relativedelta import relativedelta
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from drf_psq import Rule, PsqMixin
 from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets, mixins, status
@@ -57,15 +58,15 @@ class AnnouncementModerationViewSet(
     filterset_class = AnnouncementFilter
     parser_classes = [JSONParser]
     psq_rules = {
-        ('list', 'update'): [
+        ('list', 'partial_update'): [
             Rule([IsAdminUser], AnnouncementModerationSerializer),
         ],
     }
 
     @extend_schema(description='Permissions: IsAdmin.\n'
                                "Moderate announcement by id.")
-    def update(self, request, *args, **kwargs):
-        return super().update(request, args, kwargs)
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, args, kwargs)
 
     @extend_schema(description='Permissions: IsAdmin.\n'
                                "Get all unmoderated announcements list.")
@@ -115,7 +116,7 @@ class AnnouncementViewSet(
         return super().retrieve(request, args, kwargs)
 
     @extend_schema(description='Permissions: IsAuthenticated.\n'
-                               "(Add to favorites)/(Remove from favorites) announcement by id for current user.")
+                               "Create announcement for current authenticated user.")
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'user': request.user})
         serializer.is_valid(raise_exception=True)
@@ -133,8 +134,8 @@ class AnnouncementViewSet(
 
     @extend_schema(description='Permissions: IsAuthenticated.\n'
                                "(Add to favorites)/(Remove from favorites) announcement by id for current user.")
-    @action(methods=["post"], detail=True, url_path="switch_announcement_favorite")
-    def switch_complex_favorite(self, request, *args, **kwargs):
+    @action(methods=["patch"], detail=True, url_path="switch_announcement_favorite")
+    def switch_announcement_favorite(self, request, *args, **kwargs):
         if self.get_object() in request.user.favorite_announcements.all():
             request.user.favorite_announcements.remove(self.get_object())
             return Response("Успешно удалён")
@@ -143,8 +144,8 @@ class AnnouncementViewSet(
 
     @extend_schema(description='Permissions: IsMyAnnouncement | IsAdmin.\n'
                                "Update announcement by id for current user or admin.")
-    def update(self, request, *args, **kwargs):
-        return super().update(request, args, kwargs)
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, args, kwargs)
 
 
 @extend_schema(tags=["Subscriptions"])
@@ -212,12 +213,14 @@ class PromotionViewSet(
     PsqMixin,
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
     viewsets.GenericViewSet,
 ):
     serializer_class = PromotionSerializer
     queryset = Promotion.objects.all()
     permission_classes = [IsAuthenticated]
-    http_method_names = ['patch', 'post', 'get', 'update']
+    http_method_names = ['patch', 'post', 'get']
     parser_classes = [JSONParser]
     psq_rules = {
         ('create',): [
@@ -235,15 +238,15 @@ class PromotionViewSet(
 
     @extend_schema(description='Permissions: IsAuthenticated & IsMyPromotion.\n'
                                'Get promotion info by announcement id')
-    def retrieve(self, request, *args, **kwargs):
-        promotion = Promotion.objects.get(pk=kwargs["pk"])
+    def retrieve(self, request, pk, *args, **kwargs):
+        promotion = Promotion.objects.get(announcement_id=pk)
         serializer = self.serializer_class(promotion)
         return Response(serializer.data)
 
     @extend_schema(description='Permissions: IsAuthenticated & IsMyPromotion.\n'
                                'Update promotion info by announcement id')
     def partial_update(self, request, *args, **kwargs):
-        instance = Promotion.objects.get(pk=kwargs["pk"])
+        instance = Promotion.objects.get(announcement_id=kwargs["pk"])
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -258,17 +261,23 @@ class FilterViewSet(viewsets.ModelViewSet):
     http_method_names = ['post', 'delete', 'get']
     parser_classes = [JSONParser]
 
+    @extend_schema(description='Permissions: IsAuthenticated.\n'
+                               'Create filter for authenticated user')
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'user': request.user})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(description='Permissions: IsAuthenticated.\n'
+                               'Get all filters for authenticated user')
     def list(self, request, *args, **kwargs):
         filters = request.user.filters.all()
         serializer = self.serializer_class(filters, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(description='Permissions: IsAuthenticated.\n'
+                               'Get specific filter for authenticated user by id')
     def retrieve(self, request, *args, **kwargs):
         try:
             filter = request.user.filters.get(pk=kwargs['pk'])
@@ -277,6 +286,8 @@ class FilterViewSet(viewsets.ModelViewSet):
         serializer = self.serializer_class(filter)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(description='Permissions: IsAuthenticated.\n'
+                               'Get all announcements filtered by specific filter for authenticated user')
     @action(methods=['get'], detail=True, url_path='announcements_list',
             url_name='announcements_list')
     def announcements_list(self, request, *args, **kwargs):
@@ -288,7 +299,7 @@ class FilterViewSet(viewsets.ModelViewSet):
         if filter.appointment:
             qs.append(Q(appointment=filter.appointment))
         if filter.condition:
-            qs.append(Q(condition=filter.condition))
+            qs.append(Q(living_condition=filter.condition))
         if filter.grounds_doc:
             qs.append(Q(grounds_doc=filter.grounds_doc))
         if filter.layout:
@@ -318,6 +329,10 @@ class FilterViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK)
 
+    @extend_schema(description='Permissions: IsAuthenticated.\nDelete filter by id.')
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, args, kwargs)
+
 
 @extend_schema(tags=["Chats"])
 class ChatViewSet(
@@ -333,20 +348,24 @@ class ChatViewSet(
 
     @extend_schema(
         methods=["GET"],
-        description="Get all chats for a specific user.",
+        description="Get all chats for a currently authenticated user. Permissions: IsAuthenticated",
     )
     def list(self, request):
-        user = CustomUser.objects.prefetch_related("chat_set").get(pk=self.request.user.id)
-        chats = user.chat_set.all()
+        user = CustomUser.objects.prefetch_related("chats").get(pk=self.request.user.id)
+        chats = user.chats.all()
+        print(chats.count())
         serializer = self.serializer_class(chats, many=True, context={'request': request})
+        print(serializer.data)
+
         return Response(serializer.data)
 
     @extend_schema(
         methods=["GET"],
-        description="Get all messages for a specific chat.",
+        description="Get all messages for chat by chat's id. Permissions: IsAuthenticated",
     )
     def retrieve(self, request, pk=None):
-        chat = Chat.objects.prefetch_related("chatmessage_set").get(pk=pk)
+        chats = Chat.objects.prefetch_related("chatmessage_set").all()
+        chat = get_object_or_404(chats, pk=pk)
         chat_serializer = self.serializer_class(chat, context={'request': request})
         message_serializer = ChatMessageSerializer(chat.chatmessage_set.all().order_by('date_published'), many=True)
         data = {
@@ -354,6 +373,10 @@ class ChatViewSet(
             'messages': message_serializer.data
         }
         return Response(data)
+
+    @extend_schema(description='Permissions: IsAuthenticated.\nDelete chat by id.')
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, args, kwargs)
 
 
 @extend_schema(tags=["Messages"])
@@ -368,7 +391,7 @@ class MessageViewSet(
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser]
 
-    http_method_names = ['post', 'head', 'options', 'put', 'delete']
+    http_method_names = ['post', 'head', 'options', 'patch', 'delete']
 
     @extend_schema(description='Permissions: IsAuthenticated.\n'
                                'Send message to some user.')
@@ -390,20 +413,19 @@ class MessageViewSet(
         return Response(message.data)
 
     @extend_schema(description='Permissions: IsAuthenticated.\n'
-                               'Update message.')
-    def update(self, request, *args, **kwargs):
-        return super().update(request, *args, **kwargs)
+                               'Update message by id.')
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
 
     @extend_schema(description='Permissions: IsAuthenticated.\n'
-                               'Destroy message.')
+                               'Destroy message by id.')
     def destroy(self, request, *args, **kwargs):
-        return super().update(request, *args, **kwargs)
+        return super().destroy(request, *args, **kwargs)
 
 
 @extend_schema(tags=["Complaints"])
 class ComplaintViewSet(
     mixins.CreateModelMixin,
-    mixins.RetrieveModelMixin,
     GenericViewSet
 ):
     serializer_class = ComplaintSerializer
@@ -413,9 +435,18 @@ class ComplaintViewSet(
 
     http_method_names = ['post', 'head', 'options', 'get']
 
+    @extend_schema(description='Permissions: IsAuthenticated.\nGet all complaints for specific announcement by '
+                               'announcement id.')
     @action(methods=['get'], detail=False, url_path='announcement_complaint_list/(?P<announcement_id>[^/.]+)',
             url_name='announcement_complaint_list')
     def announcement_complaint_list(self, request, *args, **kwargs):
         complaints = Complaint.objects.filter(announcement_id=kwargs["announcement_id"])
         serializer = self.serializer_class(complaints, many=True)
+        return Response(serializer.data)
+
+    @extend_schema(description='Permissions: IsAuthenticated.\nCreate new complaint.')
+    def create(self, request, *args, **kwargs):
+        serializer = ComplaintSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(sender=request.user)
         return Response(serializer.data)

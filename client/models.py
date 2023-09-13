@@ -1,4 +1,6 @@
 from django.db import models
+from django.core.validators import MinValueValidator
+from django.utils import timezone
 
 from builder.models import *
 
@@ -60,6 +62,8 @@ class Announcement(models.Model):
     complex = models.ForeignKey('builder.Complex', on_delete=models.CASCADE, null=True)
     apartment = models.OneToOneField('builder.Apartment', models.CASCADE, null=True, related_name='announcement')
     address = models.TextField()
+    map_lat = models.DecimalField(max_digits=19, decimal_places=16, null=True)
+    map_lon = models.DecimalField(max_digits=19, decimal_places=16, null=True)
     description = models.TextField()
     main_photo = models.ImageField(upload_to=get_timestamp_path, null=True)
     is_actual = models.BooleanField(default=True)
@@ -101,8 +105,8 @@ class Announcement(models.Model):
     communication_type = models.CharField(choices=ApartmentCommunication.choices)
     date_published = models.DateTimeField(auto_now_add=True)
     watched_count = models.PositiveIntegerField(default=0)
-    square = models.PositiveSmallIntegerField(default=0)
-    price = models.PositiveIntegerField(default=0)
+    square = models.PositiveSmallIntegerField(default=100, validators=[MinValueValidator(100)])
+    price = models.PositiveIntegerField(default=10_000, validators=[MinValueValidator(10_000)])
     price_per_m2 = models.PositiveIntegerField(default=0)
 
     def save(self, *args, **kwargs):
@@ -156,7 +160,7 @@ class Promotion(models.Model):
     raise_advert = models.BooleanField(default=False)
     price = models.PositiveIntegerField()
     announcement = models.OneToOneField("Announcement", on_delete=models.CASCADE, null=True, related_name='promotion')
-    expiration_date = models.DateTimeField(null=True)
+    expiration_date = models.DateTimeField(default=timezone.now() + timezone.timedelta(days=30))
 
     class Meta:
         db_table = "promotion"
@@ -164,7 +168,7 @@ class Promotion(models.Model):
 
 class Chat(models.Model):
     date_created = models.DateField(auto_now_add=True)
-    users = models.ManyToManyField('users.CustomUser')
+    users = models.ManyToManyField('users.CustomUser', related_name='chats')
 
     class Meta:
         db_table = "chat"

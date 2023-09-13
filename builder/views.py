@@ -38,13 +38,16 @@ class ComplexViewSet(
         description="Add complex for authenticated builder. Permissions: IsBuilder",
     )
     def create(self, request, *args, **kwargs):
+        print('HELLo')
         serializer = self.serializer_class(data=request.data, context={'builder': self.request.user})
         serializer.is_valid(raise_exception=True)
+        print('HELLo1')
+
         serializer.save()
         return Response(serializer.data)
 
     @extend_schema(
-        description="Get complex for a authenticated user. Permissions: IsBuilder",
+        description="Get complex for a authenticated builder. Permissions: IsBuilder",
     )
     @action(methods=["get"], detail=False, url_path="my_complex")
     def my_complex(self, request, *args, **kwargs):
@@ -63,7 +66,7 @@ class ComplexViewSet(
         return Response(serializer.data)
 
     @extend_schema(
-        description="Get favourite complexes for a authenticated user. Permissions: IsAuthenticated",
+        description="Get list of favourite complexes for a authenticated user. Permissions: IsAuthenticated",
     )
     @action(methods=["get"], detail=False, url_path="my_favorite_complexes")
     def my_favorite_complexes_list(self, request, *args, **kwargs):
@@ -71,7 +74,8 @@ class ComplexViewSet(
         return Response(serializer.data)
 
     @extend_schema(
-        description="Get favourite complexes for a authenticated user. Permissions: IsAuthenticated",
+        description="(Add to favorites)/(Remove from favorites) complex for a authenticated user. Permissions: "
+                    "IsAuthenticated",
     )
     @action(methods=["post"], detail=True, url_path="switch_complex_favorite")
     def switch_complex_favorite(self, request, *args, **kwargs):
@@ -90,19 +94,32 @@ class CorpViewSet(viewsets.ModelViewSet):
     http_method_names = ['post', 'patch', 'delete']
     parser_classes = [JSONParser]
 
+    @extend_schema(
+        description="Create corpus for own complex by authenticated builder. Permissions: "
+                    "IsBuilder",
+    )
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status.HTTP_201_CREATED)
 
+    @extend_schema(
+        description="Update corpus for own complex by authenticated builder. Permissions: "
+                    "IsBuilder",
+    )
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, args, kwargs)
+
+    @extend_schema(
+        description="Delete corpus for own complex by authenticated builder. Permissions: "
+                    "IsBuilder",
+    )
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, args, kwargs)
+
 
 @extend_schema(tags=["News for Complex"])
-@extend_schema(
-    methods=["GET"],
-    description="Get news for all complexes. Permissions: IsAuthenticated",
-)
-@extend_schema(methods=["POST"], description="Create new news.")
 class NewsViewSet(viewsets.ModelViewSet):
     serializer_class = NewsSerializer
     queryset = News.objects.all()
@@ -110,11 +127,29 @@ class NewsViewSet(viewsets.ModelViewSet):
     http_method_names = ['patch', 'post', 'delete']
     parser_classes = [JSONParser]
 
+    @extend_schema(
+        description="Create news for own complex by authenticated builder. Permissions: "
+                    "IsBuilder",
+    )
     def create(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(complex=request.user.complex)
         return Response(serializer.data, status.HTTP_201_CREATED)
+
+    @extend_schema(
+        description="Update news for own complex by authenticated builder. Permissions: "
+                    "IsBuilder",
+    )
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, args, kwargs)
+
+    @extend_schema(
+        description="Delete news for own complex by authenticated builder. Permissions: "
+                    "IsBuilder",
+    )
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, args, kwargs)
 
 
 @extend_schema(tags=["Benefits for Complex"])
@@ -126,7 +161,7 @@ class BenefitViewSet(viewsets.GenericViewSet):
     parser_classes = [JSONParser]
 
     @extend_schema(description='Permissions: IsBuilder.\n'
-                               "Create benefits for complex of authenticated builder.")
+                               "Create benefits for own complex of authenticated builder.")
     @action(methods=['post'], detail=False, url_path="create_for_my_complex",
             url_name="create_for_my_complex")
     def create_for_my_complex(self, request, *args, **kwargs):
@@ -136,7 +171,7 @@ class BenefitViewSet(viewsets.GenericViewSet):
         return Response(serializer.data, status.HTTP_201_CREATED)
 
     @extend_schema(description='Permissions: IsBuilder.\n'
-                               "Update benefits for complex of authenticated builder.")
+                               "Update benefits for own complex of authenticated builder.")
     @action(methods=['patch'], detail=False, url_path="update_for_my_complex",
             url_name="update_for_my_complex")
     def update_for_my_complex(self, request, *args, **kwargs):
@@ -157,11 +192,6 @@ class ApartmentFilter(filters.FilterSet):
 
 
 @extend_schema(tags=["Apartments"])
-@extend_schema(
-    methods=["GET"], description="Get all apartment. Permissions: IsAuthenticated"
-)
-@extend_schema(methods=["PUT", "PATCH"], description="Update specific apartment.")
-@extend_schema(methods=["POST"], description="Create new apartment.")
 class ApartmentViewSet(
     PsqMixin,
     mixins.DestroyModelMixin,
@@ -180,6 +210,8 @@ class ApartmentViewSet(
         ],
     }
 
+    @extend_schema(description='Permissions: IsBuilder.\n'
+                               "Create new apartment for own complex of authenticated builder.")
     @action(methods=['post'], detail=False, url_path="add_to_my_complex",
             url_name="add_to_my_complex")
     def add_to_my_complex(self, request, *args, **kwargs):
@@ -190,6 +222,8 @@ class ApartmentViewSet(
         serializer.save()
         return Response(data=serializer.data)
 
+    @extend_schema(description='Permissions: IsBuilder.\n'
+                               "Get all apartments for own complex of authenticated builder.")
     @action(methods=['get'], detail=False, url_path="for_my_complex",
             url_name="for_my_complex")
     def for_my_complex(self, request, *args, **kwargs):
@@ -208,6 +242,8 @@ class ApartmentViewSet(
         serializer = self.serializer_class(apartments, many=True)
         return Response(data=serializer.data)
 
+    @extend_schema(description='Permissions: IsBuilder.\n'
+                               "Get all unmoderated apartments for own complex of authenticated builder.")
     @action(methods=['get'], detail=False, url_path="unmoderated_for_my_complex",
             url_name="unmoderated_for_my_complex")
     def unmoderated_for_my_complex(self, request, *args, **kwargs):
@@ -216,7 +252,7 @@ class ApartmentViewSet(
         return Response(data=serializer.data)
 
     @extend_schema(description='Permissions: IsBuilder.\n'
-                               "Moderate apartment by id.",
+                               "Moderate apartment by id for own complex of authenticated builder.",
                    request=ApartmentModerationSerializer,
                    responses=ApartmentModerationSerializer
                    )
@@ -229,6 +265,10 @@ class ApartmentViewSet(
         serializer.save()
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        description="(Add apartment to booked)/(Remove apartment from booked) for a authenticated user. Permissions: "
+                    "IsAuthenticated",
+    )
     @action(methods=['patch'], detail=True, url_path="switch_booking",
             url_name="switch_booking")
     def switch_booking(self, request, *args, **kwargs):
@@ -269,6 +309,8 @@ class ChessboardViewSet(
         ],
     }
 
+    @extend_schema(description='Permissions: IsBuilder.\n'
+                               "Get all chessboards for own complex of authenticated builder.")
     @action(methods=['get'], detail=False, url_path="chessboards_for_my_complex", url_name="chessboards_for_my_complex")
     def chessboards_for_my_complex(self, request, *args, **kwargs):
         complex = Complex.objects.prefetch_related('corps').get(builder=request.user)
@@ -284,6 +326,8 @@ class ChessboardViewSet(
         else:
             return Response([])
 
+    @extend_schema(description='Permissions: IsAuthenticated.\n'
+                               "Get all chessboards for complex.")
     @action(methods=['get'], detail=True, url_path="chessboards_for_complex", url_name="chessboards_for_complex")
     def chessboards_for_complex(self, request, *args, **kwargs):
         try:
@@ -299,7 +343,7 @@ class ChessboardViewSet(
 
         return Response(data=serializer.data)
 
-    @extend_schema(methods=["POST"], description="Create new apartment for adding to chessboard.",
+    @extend_schema(methods=["POST"], description="Create new apartment for adding to chessboard.Permissions: IsClient",
                    request=ApartmentSerializer,
                    responses=ApartmentSerializer
                    )

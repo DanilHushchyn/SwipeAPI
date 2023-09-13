@@ -16,8 +16,9 @@ class NotaryViewSet(PsqMixin, viewsets.ModelViewSet):
     queryset = Notary.objects.all()
     serializer_class = NotarySerializer
     parser_classes = [MultiPartParser]
+    http_method_names = ['get', 'post', 'delete', 'patch']
     psq_rules = {
-        ('create', 'update', 'partial_update', 'destroy'): [
+        ('create', 'partial_update', 'destroy'): [
             Rule([IsAdminUser], NotarySerializer),
         ],
         ('retrieve', 'list'): [
@@ -38,8 +39,8 @@ class NotaryViewSet(PsqMixin, viewsets.ModelViewSet):
         return super().create(request, args, kwargs)
 
     @extend_schema(description='Permissions: IsAdminUser.\nUpdate notary by id.')
-    def update(self, request, *args, **kwargs):
-        return super().update(request, args, kwargs)
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, args, kwargs)
 
     @extend_schema(description='Permissions: IsAdminUser.\nDelete notary by id.')
     def destroy(self, request, *args, **kwargs):

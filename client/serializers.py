@@ -9,9 +9,11 @@ from users.models import CustomUser
 
 
 class PromotionSerializer(serializers.ModelSerializer):
+    announcement = serializers.PrimaryKeyRelatedField(queryset=Announcement.objects.all(), required=True)
+
     class Meta:
         model = Promotion
-        fields = "__all__"
+        exclude = ("expiration_date",)
 
 
 class AnnouncementGallerySerializer(serializers.ModelSerializer):
@@ -105,6 +107,15 @@ class AnnouncementSerializer(serializers.ModelSerializer):
         model = Announcement
         exclude = ('client', 'is_moderated', 'watched_count', 'is_actual', 'moderation_status', 'price_per_m2')
 
+    def validate(self, data):
+        if 'kitchen_square' in data and data['kitchen_square'] >= data['square']:
+            raise serializers.ValidationError(
+                {
+                    'error_square': 'Площадь кухни не может превышать общую площадь'
+                }
+            )
+        return data
+
     def create(self, validated_data):
         if 'images' in validated_data:
             images_data = validated_data.pop('images')
@@ -151,7 +162,9 @@ class ChatSerializer(serializers.ModelSerializer):
     last_message = serializers.SerializerMethodField('is_last_message')
 
     def is_last_message(self, obj):
-        return ChatMessage.objects.filter(chat_id=obj.id).order_by('-date_published')[0].content
+        if ChatMessage.objects.filter(chat_id=obj.id).count() > 0:
+            return ChatMessage.objects.filter(chat_id=obj.id).order_by('-date_published')[0].content
+        return "No messages yet"
 
     title = serializers.SerializerMethodField('is_title')
 
@@ -190,3 +203,4 @@ class ComplaintSerializer(serializers.ModelSerializer):
     class Meta:
         model = Complaint
         fields = "__all__"
+        read_only_fields = ['sender', ]

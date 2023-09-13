@@ -20,12 +20,12 @@ app.autodiscover_tasks()
 app.conf.beat_schedule = {
     'manage_subscription_every_day': {
         'task': 'client.tasks.subscriptions',
-        'schedule': crontab(),  # change to `crontab(minute=0, hour=0)` if you want it to run daily
+        'schedule': crontab(minute=0, hour=0),  # change to `crontab(minute=0, hour=0)` if you want it to run daily
         # at midnight
     },
     'check_deactivating_promotion_every_day': {
         'task': 'client.tasks.deactivate_promotions',
-        'schedule': crontab(),  # change to `crontab(minute=0, hour=0)` if you want it to run daily
+        'schedule': crontab(minute=0, hour=0),  # change to `crontab(minute=0, hour=0)` if you want it to run daily
         # at midnight
     },
 }

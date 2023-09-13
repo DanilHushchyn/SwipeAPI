@@ -26,6 +26,11 @@ drf-extra-fields = "^3.7.0"
 celery = "^5.3.1"
 redis = "^5.0.0"
 drf-compound-fields = "^2.0.0"
+pytest = "^7.4.2"
+pytest-django = "^4.5.2"
+factory-boy = "^3.3.0"
+pytest-factoryboy = "^2.5.1"
+model-bakery = "^1.15.0"
 
 [build-system]
 requires = ["poetry-core"]
