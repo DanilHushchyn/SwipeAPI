@@ -7,6 +7,7 @@ from rest_framework.permissions import *
 from rest_framework.response import Response
 from rest_framework import viewsets, mixins, status
 
+from builder.permissions import IsMyApartment
 from builder.serializers import *
 from client.models import *
 from django_filters import rest_framework as filters
@@ -26,22 +27,21 @@ class ComplexViewSet(
     serializer_class = ComplexSerializer
     queryset = Complex.objects.all()
     permission_classes = [IsAuthenticated]
-    http_method_names = ['post', 'get', 'put']
+    http_method_names = ['post', 'get', 'patch']
     psq_rules = {
         ('create', 'my_complex', 'update_my_complex'): [
             Rule([IsBuilder], ComplexSerializer),
         ],
     }
-    """ПОТЕСТИТЬ CREATE Чтобы не больше одного ЖК на застройщика"""
 
     @extend_schema(
-        description="Add complex for authenticated builder. Permissions: IsBuilder",
+        description="Add complex for authenticated builder. Permissions: IsBuilder"
     )
     def create(self, request, *args, **kwargs):
-        print('HELLo')
+        if hasattr(self.request.user, 'complex'):
+            return Response("Комплекс уже создан для текущего пользователя")
         serializer = self.serializer_class(data=request.data, context={'builder': self.request.user})
         serializer.is_valid(raise_exception=True)
-        print('HELLo1')
 
         serializer.save()
         return Response(serializer.data)
@@ -51,15 +51,19 @@ class ComplexViewSet(
     )
     @action(methods=["get"], detail=False, url_path="my_complex")
     def my_complex(self, request, *args, **kwargs):
+        if not hasattr(self.request.user, 'complex'):
+            return Response("Сначала создайте комплекс", status=status.HTTP_405_METHOD_NOT_ALLOWED)
         serializer = self.serializer_class(self.queryset.get(builder=request.user))
         return Response(serializer.data)
 
     @extend_schema(
-        methods=["PUT"],
+        methods=["Patch"],
         description="Update complex of authenticated builder. Permissions: IsBuilder",
     )
-    @action(methods=["put"], detail=False, url_path="update_my_complex")
+    @action(methods=["patch"], detail=False, url_path="update_my_complex")
     def update_my_complex(self, request, *args, **kwargs):
+        if not hasattr(self.request.user, 'complex'):
+            return Response("Сначала создайте комплекс", status=status.HTTP_405_METHOD_NOT_ALLOWED)
         serializer = self.serializer_class(request.user.complex, request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -77,7 +81,7 @@ class ComplexViewSet(
         description="(Add to favorites)/(Remove from favorites) complex for a authenticated user. Permissions: "
                     "IsAuthenticated",
     )
-    @action(methods=["post"], detail=True, url_path="switch_complex_favorite")
+    @action(methods=["post"], detail=True, url_path="switch_complex_favorite", serializer_class=None)
     def switch_complex_favorite(self, request, *args, **kwargs):
         if self.get_object() in request.user.favorite_complexes.all():
             request.user.favorite_complexes.remove(self.get_object())
@@ -99,6 +103,8 @@ class CorpViewSet(viewsets.ModelViewSet):
                     "IsBuilder",
     )
     def create(self, request, *args, **kwargs):
+        if not hasattr(self.request.user, 'complex'):
+            return Response("Сначала создайте комплекс", status=status.HTTP_405_METHOD_NOT_ALLOWED)
         serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -109,6 +115,8 @@ class CorpViewSet(viewsets.ModelViewSet):
                     "IsBuilder",
     )
     def partial_update(self, request, *args, **kwargs):
+        if not hasattr(self.request.user, 'complex'):
+            return Response("Сначала создайте комплекс", status=status.HTTP_405_METHOD_NOT_ALLOWED)
         return super().partial_update(request, args, kwargs)
 
     @extend_schema(
@@ -116,6 +124,8 @@ class CorpViewSet(viewsets.ModelViewSet):
                     "IsBuilder",
     )
     def destroy(self, request, *args, **kwargs):
+        if not hasattr(self.request.user, 'complex'):
+            return Response("Сначала создайте комплекс", status=status.HTTP_405_METHOD_NOT_ALLOWED)
         return super().destroy(request, args, kwargs)
 
 
@@ -132,6 +142,8 @@ class NewsViewSet(viewsets.ModelViewSet):
                     "IsBuilder",
     )
     def create(self, request):
+        if not hasattr(self.request.user, 'complex'):
+            return Response("Сначала создайте комплекс", status=status.HTTP_405_METHOD_NOT_ALLOWED)
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(complex=request.user.complex)
@@ -142,6 +154,8 @@ class NewsViewSet(viewsets.ModelViewSet):
                     "IsBuilder",
     )
     def partial_update(self, request, *args, **kwargs):
+        if not hasattr(self.request.user, 'complex'):
+            return Response("Сначала создайте комплекс", status=status.HTTP_405_METHOD_NOT_ALLOWED)
         return super().partial_update(request, args, kwargs)
 
     @extend_schema(
@@ -149,6 +163,8 @@ class NewsViewSet(viewsets.ModelViewSet):
                     "IsBuilder",
     )
     def destroy(self, request, *args, **kwargs):
+        if not hasattr(self.request.user, 'complex'):
+            return Response("Сначала создайте комплекс", status=status.HTTP_405_METHOD_NOT_ALLOWED)
         return super().destroy(request, args, kwargs)
 
 
@@ -161,20 +177,12 @@ class BenefitViewSet(viewsets.GenericViewSet):
     parser_classes = [JSONParser]
 
     @extend_schema(description='Permissions: IsBuilder.\n'
-                               "Create benefits for own complex of authenticated builder.")
-    @action(methods=['post'], detail=False, url_path="create_for_my_complex",
-            url_name="create_for_my_complex")
-    def create_for_my_complex(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save(complex=request.user.complex)
-        return Response(serializer.data, status.HTTP_201_CREATED)
-
-    @extend_schema(description='Permissions: IsBuilder.\n'
                                "Update benefits for own complex of authenticated builder.")
     @action(methods=['patch'], detail=False, url_path="update_for_my_complex",
             url_name="update_for_my_complex")
     def update_for_my_complex(self, request, *args, **kwargs):
+        if not hasattr(self.request.user, 'complex'):
+            return Response("Сначала создайте комплекс", status=status.HTTP_405_METHOD_NOT_ALLOWED)
         serializer = self.serializer_class(request.user.complex.benefit, request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(complex=request.user.complex)
@@ -204,9 +212,14 @@ class ApartmentViewSet(
     permission_classes = [IsAuthenticated]
     filterset_class = ApartmentFilter
     parser_classes = [MultiPartParser]
+    http_method_names = ['patch', 'get', 'post', 'delete']
     psq_rules = {
-        ('add_to_my_complex', 'for_my_complex', 'unmoderated_for_my_complex', 'moderate_for_my_complex'): [
+        ('add_to_my_complex', 'for_my_complex_list', 'unmoderated_for_my_complex',
+         'moderate_for_my_complex', 'partial_update', 'delete', 'retrieve'): [
             Rule([IsBuilder], ApartmentSerializer),
+        ],
+        ('switch_booking',): [
+            Rule([IsMyApartment], ApartmentSerializer),
         ],
     }
 
@@ -215,6 +228,8 @@ class ApartmentViewSet(
     @action(methods=['post'], detail=False, url_path="add_to_my_complex",
             url_name="add_to_my_complex")
     def add_to_my_complex(self, request, *args, **kwargs):
+        if not hasattr(self.request.user, 'complex'):
+            return Response("Сначала создайте комплекс", status=status.HTTP_405_METHOD_NOT_ALLOWED)
         serializer = self.serializer_class(data=request.data,
                                            context={'user': request.user, 'complex': request.user.complex,
                                                     'is_moderated': True})
@@ -222,24 +237,51 @@ class ApartmentViewSet(
         serializer.save()
         return Response(data=serializer.data)
 
-    @extend_schema(description='Permissions: IsBuilder.\n'
-                               "Get all apartments for own complex of authenticated builder.")
-    @action(methods=['get'], detail=False, url_path="for_my_complex",
-            url_name="for_my_complex")
-    def for_my_complex(self, request, *args, **kwargs):
+    @extend_schema(responses=ApartmentSerializer(many=True), description='Permissions: IsBuilder.\n'
+                                                                         "Get all apartments list for own complex of "
+                                                                         "authenticated builder.")
+    @action(methods=['get'], detail=False, url_path="for_my_complex_list",
+            url_name="for_my_complex_list")
+    def for_my_complex_list(self, request, *args, **kwargs):
+        if not hasattr(self.request.user, 'complex'):
+            return Response("Сначала создайте комплекс", status=status.HTTP_405_METHOD_NOT_ALLOWED)
         filtered_queryset = self.filterset_class(request.GET, queryset=self.get_queryset()).qs
-        apartments = filtered_queryset.filter(complex=request.user.complex)
-        serializer = self.serializer_class(apartments, many=True)
+        filtered_queryset = filtered_queryset.filter(complex=request.user.complex, is_moderated=True)
+        complex = Complex.objects.prefetch_related('corps').get(builder=request.user)
+        result = {}
+        for i, corp in enumerate(complex.corps.prefetch_related('sections').all()):
+            if i == 0:
+                result = corp.sections.all()
+            result = result.union(corp.sections.all())
+        if len(result):
+            serializer = ApartmentListSerializer(result.order_by('corp_id'), many=True,
+                                                 context={'filtered_queryset': filtered_queryset})
+
+            return Response(data=serializer.data)
+        else:
+            return Response([])
+
         return Response(data=serializer.data)
 
-    @extend_schema(description='Permissions: IsAuthenticated.\n'
-                               "(Add to favorites)/(Remove from favorites) announcement by id for current user.")
+    @extend_schema(responses=ApartmentSerializer(many=True), description='Permissions: IsAuthenticated.\n'
+                                                                         "Get all moderated apartments for specific complex by id.")
     @action(methods=['get'], detail=False, url_path="for_complex/(?P<complex_id>[^/.]+)",
             url_name="for_complex")
     def for_complex(self, request, *args, **kwargs):
         filtered_queryset = self.filterset_class(request.GET, queryset=self.get_queryset()).qs
-        apartments = filtered_queryset.filter(complex=self.kwargs['complex_id'])
-        serializer = self.serializer_class(apartments, many=True)
+        filtered_queryset = filtered_queryset.filter(is_moderated=True, complex=self.kwargs['complex_id'])
+        complex = Complex.objects.prefetch_related('corps').get(pk=self.kwargs['complex_id'])
+        result = {}
+        for i, corp in enumerate(complex.corps.prefetch_related('sections').all()):
+            if i == 0:
+                result = corp.sections.all()
+            result = result.union(corp.sections.all())
+        if len(result):
+            serializer = ApartmentListSerializer(result.order_by('corp_id'), many=True,
+                                                 context={'filtered_queryset': filtered_queryset})
+            return Response(data=serializer.data)
+        else:
+            return Response([])
         return Response(data=serializer.data)
 
     @extend_schema(description='Permissions: IsBuilder.\n'
@@ -247,6 +289,8 @@ class ApartmentViewSet(
     @action(methods=['get'], detail=False, url_path="unmoderated_for_my_complex",
             url_name="unmoderated_for_my_complex")
     def unmoderated_for_my_complex(self, request, *args, **kwargs):
+        if not hasattr(self.request.user, 'complex'):
+            return Response("Сначала создайте комплекс", status=status.HTTP_405_METHOD_NOT_ALLOWED)
         apartments = self.queryset.filter(is_moderated=None)
         serializer = self.serializer_class(apartments, many=True)
         return Response(data=serializer.data)
@@ -259,6 +303,8 @@ class ApartmentViewSet(
     @action(methods=['patch'], detail=True, url_path="moderate_for_my_complex",
             url_name="moderate_for_my_complex")
     def moderate_for_my_complex(self, request, *args, **kwargs):
+        if not hasattr(self.request.user, 'complex'):
+            return Response("Сначала создайте комплекс", status=status.HTTP_405_METHOD_NOT_ALLOWED)
         apartment = Apartment.objects.get(pk=self.kwargs['pk'])
         serializer = ApartmentModerationSerializer(apartment, data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -269,7 +315,7 @@ class ApartmentViewSet(
         description="(Add apartment to booked)/(Remove apartment from booked) for a authenticated user. Permissions: "
                     "IsAuthenticated",
     )
-    @action(methods=['patch'], detail=True, url_path="switch_booking",
+    @action(methods=['patch'], detail=True, url_path="switch_booking", serializer_class=None,
             url_name="switch_booking")
     def switch_booking(self, request, *args, **kwargs):
         try:
@@ -298,7 +344,7 @@ class ChessboardViewSet(
 ):
     serializer_class = ChessBoardSerializer
     queryset = Complex.objects.all()
-    parser_classes = [JSONParser]
+    parser_classes = [MultiPartParser]
     permission_classes = [IsAuthenticated]
     psq_rules = {
         ('chessboards_for_my_complex',): [
@@ -313,6 +359,8 @@ class ChessboardViewSet(
                                "Get all chessboards for own complex of authenticated builder.")
     @action(methods=['get'], detail=False, url_path="chessboards_for_my_complex", url_name="chessboards_for_my_complex")
     def chessboards_for_my_complex(self, request, *args, **kwargs):
+        if not hasattr(self.request.user, 'complex'):
+            return Response("Сначала создайте комплекс", status=status.HTTP_405_METHOD_NOT_ALLOWED)
         complex = Complex.objects.prefetch_related('corps').get(builder=request.user)
         result = {}
         for i, corp in enumerate(complex.corps.prefetch_related('sections').all()):

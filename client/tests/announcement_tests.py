@@ -190,6 +190,7 @@ class TestAnnouncement:
     def test_delete_announcement(self, client):
         client_api, client = client
         obj = baker.make(Announcement, client_id=client.id)
+        # obj = baker.make(Apartment, client_id=client.id)
         response = client_api.delete(f'/api/v1/client/announcements/{obj.id}/',
                                      format='json')
         assert response.status_code == 204, f'Status code expected {204} but got {response.status_code}'

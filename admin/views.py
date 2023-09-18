@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 
 from admin.models import Notary
+# from admin.permissions import IsAdmin
 from admin.serializers import NotarySerializer
 
 
@@ -22,7 +23,7 @@ class NotaryViewSet(PsqMixin, viewsets.ModelViewSet):
             Rule([IsAdminUser], NotarySerializer),
         ],
         ('retrieve', 'list'): [
-            Rule([IsAuthenticated | IsAdminUser], NotarySerializer),
+            Rule([IsAuthenticated], NotarySerializer),
         ]
     }
 

@@ -91,7 +91,7 @@ class AnnouncementViewSet(
     parser_classes = [JSONParser]
     psq_rules = {
         ('partial_update',): [
-            Rule([IsAdminUser | IsMyAnnouncement], AnnouncementSerializer),
+            Rule([IsMyAnnouncement | IsAdminUser], AnnouncementSerializer),
         ],
         ('create',): [
             Rule([IsBuilder | IsClient], AnnouncementSerializer),
@@ -100,10 +100,10 @@ class AnnouncementViewSet(
             Rule([IsMyAnnouncement], AnnouncementSerializer),
         ],
         ('retrieve', 'list', 'switch_complex_favorite'): [
-            Rule([IsAuthenticated], AnnouncementSerializer),
+            Rule([IsAuthenticated], AnnouncementReadingSerializer),
         ],
         ('my_announcements',): [
-            Rule([IsClient], AnnouncementSerializer),
+            Rule([IsBuilder | IsClient], AnnouncementReadingSerializer),
         ],
     }
 
@@ -131,6 +131,14 @@ class AnnouncementViewSet(
         announcements = filtered_queryset.filter(client=request.user)
         serializer = self.serializer_class(announcements, many=True)
         return Response(serializer.data)
+
+    @extend_schema(description='Permissions: IsMyAnnouncement.\nDelete announcement by id.')
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if hasattr(instance, 'apartment') and instance.apartment:
+            instance.apartment.delete()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(description='Permissions: IsAuthenticated.\n'
                                "(Add to favorites)/(Remove from favorites) announcement by id for current user.")

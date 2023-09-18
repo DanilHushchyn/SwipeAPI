@@ -1,0 +1,75 @@
+###########
+# BUILDER #
+###########
+
+# pull official base image
+FROM python:3.10-alpine as builder
+
+# set work directory
+WORKDIR /usr/src/SwipeAPI
+
+# set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# install psycopg2 dependencies
+RUN apk update \
+    && apk add postgresql-dev gcc python3-dev musl-dev
+
+# lint
+RUN pip install --upgrade pip
+# install dependencies
+COPY ./requirements.txt .
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/SwipeAPI/wheels -r requirements.txt
+
+
+#########
+# FINAL #
+#########
+
+# pull official base image
+FROM python:3.10-alpine
+
+# create directory for the app user
+RUN mkdir -p /home/SwipeAPI
+
+# create the app user
+RUN addgroup -S SwipeAPI && adduser -S SwipeAPI -G SwipeAPI
+
+# create the appropriate directories
+ENV HOME=/home/SwipeAPI
+ENV APP_HOME=/home/SwipeAPI/web
+RUN mkdir $APP_HOME
+RUN mkdir $APP_HOME/static
+RUN mkdir $APP_HOME/media
+
+
+WORKDIR $APP_HOME
+
+# install dependencies
+RUN apk update && apk add libpq
+
+RUN apk --update --upgrade --no-cache add fontconfig ttf-freefont font-noto terminus-font \
+   && fc-cache -f \
+   && fc-list | sort
+
+RUN apk add py3-pip py3-pillow py3-cffi py3-brotli gcc musl-dev python3-dev pango
+
+COPY --from=builder /usr/src/SwipeAPI/wheels /wheels
+COPY --from=builder /usr/src/SwipeAPI/requirements.txt .
+RUN pip install --no-cache /wheels/*
+
+# copy entrypoint-prod.sh
+COPY ./entrypoint.sh $APP_HOME
+
+# copy project
+COPY . $APP_HOME
+
+# chown all the files to the app user
+RUN chown -R SwipeAPI:SwipeAPI $APP_HOME
+
+# change to the app user
+USER SwipeAPI
+
+# run entrypoint.sh
+ENTRYPOINT ["/home/SwipeAPI/web/entrypoint.sh"]

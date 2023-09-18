@@ -3,13 +3,18 @@ from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from builder.serializers import ComplexSerializer
+from builder.serializers import ComplexSerializer, ApartmentSerializer
 from client.models import *
 from users.models import CustomUser
 
 
 class PromotionSerializer(serializers.ModelSerializer):
     announcement = serializers.PrimaryKeyRelatedField(queryset=Announcement.objects.all(), required=True)
+
+    def create(self, validated_data):
+        instance = Promotion.objects.create(**validated_data,
+                                            expiration_date=(timezone.now() + timezone.timedelta(days=30)))
+        return instance
 
     class Meta:
         model = Promotion
@@ -105,7 +110,8 @@ class AnnouncementSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Announcement
-        exclude = ('client', 'is_moderated', 'watched_count', 'is_actual', 'moderation_status', 'price_per_m2')
+        fields = '__all__'
+        read_only_fields = ['is_moderated', 'watched_count', 'is_actual', 'moderation_status', 'price_per_m2', 'client']
 
     def validate(self, data):
         if 'kitchen_square' in data and data['kitchen_square'] >= data['square']:
@@ -148,6 +154,10 @@ class AnnouncementSerializer(serializers.ModelSerializer):
         instance.moderation_status = None
         instance.save()
         return instance
+
+
+class AnnouncementReadingSerializer(AnnouncementSerializer):
+    apartment = ApartmentSerializer(read_only=True)
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):

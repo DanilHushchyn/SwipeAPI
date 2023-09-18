@@ -160,7 +160,7 @@ class Promotion(models.Model):
     raise_advert = models.BooleanField(default=False)
     price = models.PositiveIntegerField()
     announcement = models.OneToOneField("Announcement", on_delete=models.CASCADE, null=True, related_name='promotion')
-    expiration_date = models.DateTimeField(default=timezone.now() + timezone.timedelta(days=30))
+    expiration_date = models.DateTimeField(null=True)
 
     class Meta:
         db_table = "promotion"

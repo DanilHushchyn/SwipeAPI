@@ -12,7 +12,6 @@ from rest_framework.response import Response
 from builder.models import *
 from client.models import Chat, Subscription
 from users.models import CustomUser, Contact
-from users.permissions import IsMyProfile
 from users.serializers import ProfileSerializer, ContactSerializer
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
@@ -21,32 +20,23 @@ from dateutil.relativedelta import relativedelta
 @extend_schema(tags=["Profile"])
 class ProfileViewSet(
     PsqMixin,
-    mixins.DestroyModelMixin,
     mixins.RetrieveModelMixin,
     mixins.ListModelMixin,
     viewsets.GenericViewSet
 ):
     serializer_class = ProfileSerializer
     queryset = CustomUser.objects.all()
-    http_method_names = ['get', "put", 'patch', 'delete']
+    http_method_names = ['get', "put", 'patch',]
     parser_classes = [JSONParser]
     psq_rules = {
         ('list', 'blacklist', 'switch_blacklist'): [
             Rule([IsAdminUser], ProfileSerializer),
         ],
-        ('my_profile', 'retrieve', 'destroy', 'update_my_profile'): [
+        ('my_profile', 'retrieve', 'update_my_profile'): [
             Rule([IsAuthenticated], ProfileSerializer),
         ]
     }
 
-    def destroy(self, request, *args, **kwargs):
-        user = CustomUser.objects.get(pk=kwargs['pk'])
-        chats = Chat.objects.annotate(Count('users'))
-        for chat in chats:
-            if user in chat.users.all() and chat.users__count <= 1:
-                chat.delete()
-        user.delete()
-        return Response('Профиль успешно удалён', status.HTTP_200_OK)
 
     def list(self, request, *args, **kwargs):
         active_profiles = self.queryset.filter(is_active=True)

@@ -1,7 +1,9 @@
+from django.core.exceptions import NON_FIELD_ERRORS
 from django.db import models
 from django.db.models import ExpressionWrapper, F
 
 from admin.utils import get_timestamp_path
+from django.core.validators import MinValueValidator
 
 
 class ComplexStatus(models.TextChoices):
@@ -56,7 +58,6 @@ class ComplexSewerage(models.TextChoices):
 
 
 class PaymentTypes(models.TextChoices):
-    DEFAULT = "", ""
     MORTGAGE = "Ипотека", "Ипотека"
     MATHEMATICAL_CAPITAL = "Мат.капитал", "Мат.капитал"
     OTHER = "Другое", "Другое"
@@ -71,7 +72,8 @@ class Complex(models.Model):
     builder = models.OneToOneField(
         "users.CustomUser", on_delete=models.CASCADE, related_name="complex"
     )
-    coordinate = models.TextField(default='не указано')
+    map_lat = models.DecimalField(max_digits=19, decimal_places=16, null=True)
+    map_lon = models.DecimalField(max_digits=19, decimal_places=16, null=True)
     main_photo = models.ImageField(
         upload_to=get_timestamp_path, null=True
     )
@@ -130,7 +132,7 @@ class GalleryComplex(models.Model):
 
 
 class DocKitComplex(models.Model):
-    file = models.FileField(upload_to=f'complexes/doc-kit/')
+    file = models.FileField(upload_to=f'complexes/doc-kit/', null=True)
     complex = models.ForeignKey(
         Complex, on_delete=models.CASCADE, related_name='documents'
     )
@@ -214,8 +216,8 @@ class Apartment(models.Model):
     sewer = models.ForeignKey("Sewer", on_delete=models.CASCADE, related_name='apartments')
     complex = models.ForeignKey("Complex", on_delete=models.CASCADE, related_name='apartments')
     owner = models.ForeignKey("users.CustomUser", on_delete=models.CASCADE, related_name='apartments')
-    square = models.PositiveSmallIntegerField(default=0)
-    price = models.PositiveIntegerField(default=0)
+    square = models.PositiveSmallIntegerField(default=5, validators=[MinValueValidator(5)])
+    price = models.PositiveIntegerField(default=10, validators=[MinValueValidator(10)])
     is_booked = models.BooleanField(default=False)
     is_moderated = models.BooleanField(null=True)
     moderation_status = models.CharField(max_length=30,
