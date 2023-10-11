@@ -106,7 +106,7 @@ class Announcement(models.Model):
     date_published = models.DateTimeField(auto_now_add=True)
     watched_count = models.PositiveIntegerField(default=0)
     square = models.PositiveSmallIntegerField(default=100, validators=[MinValueValidator(100)])
-    price = models.PositiveIntegerField(default=10_000, validators=[MinValueValidator(10_000)])
+    price = models.PositiveIntegerField(default=100)
     price_per_m2 = models.PositiveIntegerField(default=0)
 
     def save(self, *args, **kwargs):
@@ -115,6 +115,7 @@ class Announcement(models.Model):
 
     class Meta:
         db_table = "announcement"
+        ordering = ['-date_published']
 
 
 class GalleryAnnouncement(models.Model):

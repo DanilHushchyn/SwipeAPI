@@ -1,6 +1,7 @@
 from dj_rest_auth.registration.serializers import RegisterSerializer
 from dj_rest_auth.serializers import LoginSerializer
 from django.contrib.auth import get_user_model, models
+from drf_extra_fields.fields import Base64ImageField
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -44,6 +45,7 @@ class ContactSerializer(serializers.ModelSerializer):
 
 class ProfileSerializer(serializers.ModelSerializer):
     agent_contacts = ContactSerializer()
+    avatar = Base64ImageField(required=False)
 
     def update(self, instance, validated_data):
         # Add your custom logic here for updating the instance
@@ -58,6 +60,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         # You can also perform any additional custom operations
         instance.email = validated_data.get('email', instance.email)
         instance.phone = validated_data.get('phone', instance.phone)
+        instance.avatar = validated_data.get('avatar', instance.avatar)
         instance.first_name = validated_data.get('first_name', instance.first_name)
         instance.last_name = validated_data.get('last_name', instance.last_name)
         instance.notification_type = validated_data.get('notification_type', instance.notification_type)

@@ -99,7 +99,7 @@ class AnnouncementViewSet(
         ('destroy',): [
             Rule([IsMyAnnouncement], AnnouncementSerializer),
         ],
-        ('retrieve', 'list', 'switch_complex_favorite'): [
+        ('retrieve', 'list', 'switch_announcement_favorite'): [
             Rule([IsAuthenticated], AnnouncementReadingSerializer),
         ],
         ('my_announcements',): [
